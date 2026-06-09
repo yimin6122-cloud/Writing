@@ -15,7 +15,7 @@ const WORLD_GRADIENTS = {
   space:      'radial-gradient(ellipse at 25% 40%,#000a30,transparent 55%),radial-gradient(ellipse at 75% 60%,#001040,transparent 50%),linear-gradient(180deg,#000208,#020810 50%,#000208)',
 };
 
-// ---- 9 大世界（扁平结构，每个世界 = 一个场景）----
+// ---- 9 大世界（每世界5首曲目，附带Pixabay搜索关键词）----
 const WORLD_TREE = {
   ancient: {
     name: '古风', desc: '宫廷 · 江湖 · 仙侠',
@@ -23,11 +23,11 @@ const WORLD_TREE = {
     palette: ['#fbbf24','#f59e0b','#d97706','#fcd34d','#fde68a'],
     bgClass: 'ancient',
     tracks: [
-      { name:'宫墙之影', genre:'编钟与古琴', dur:235 },
-      { name:'江湖夜雨', genre:'笛子协奏', dur:200 },
-      { name:'云海仙踪', genre:'空灵箫声', dur:240 },
-      { name:'水墨江南', genre:'古筝与笛', dur:195 },
-      { name:'征战行', genre:'战鼓号角', dur:220 },
+      { name:'宫墙之影', genre:'编钟与古琴', dur:235, search:'chinese traditional guzheng palace' },
+      { name:'江湖夜雨', genre:'笛子协奏', dur:200, search:'chinese flute xiao wandering' },
+      { name:'云海仙踪', genre:'空灵箫声', dur:240, search:'chinese ethereal xianxia ambient' },
+      { name:'水墨江南', genre:'古筝与笛', dur:195, search:'chinese guzheng peaceful garden' },
+      { name:'征战行', genre:'战鼓号角', dur:220, search:'epic chinese war drums battle' },
     ],
   },
   fantasy: {
@@ -36,11 +36,11 @@ const WORLD_TREE = {
     palette: ['#c4a0ff','#a78bfa','#8b5cf6','#d8b4fe','#e9d5ff'],
     bgClass: 'fantasy',
     tracks: [
-      { name:'咒文与星图', genre:'神秘管弦', dur:215 },
-      { name:'王座之间', genre:'大提琴独奏', dur:240 },
-      { name:'林间晨光', genre:'凯尔特竖琴', dur:198 },
-      { name:'深渊回响', genre:'低音弦乐', dur:225 },
-      { name:'圣光颂歌', genre:'合唱与管风琴', dur:250 },
+      { name:'咒文与星图', genre:'神秘管弦', dur:215, search:'fantasy magical orchestral mysterious' },
+      { name:'王座之间', genre:'大提琴独奏', dur:240, search:'medieval cello throne royal' },
+      { name:'林间晨光', genre:'凯尔特竖琴', dur:198, search:'celtic harp forest elven' },
+      { name:'深渊回响', genre:'低音弦乐', dur:225, search:'dark dungeon deep strings' },
+      { name:'圣光颂歌', genre:'合唱与管风琴', dur:250, search:'epic choir organ cathedral sacred' },
     ],
   },
   urban: {
@@ -49,11 +49,11 @@ const WORLD_TREE = {
     palette: ['#f472b6','#fb7185','#a78bfa','#f9a8d4','#e879f9'],
     bgClass: 'urban',
     tracks: [
-      { name:'晨间通勤', genre:'轻电子', dur:185 },
-      { name:'放学铃响', genre:'尤克里里', dur:175 },
-      { name:'午后的猫', genre:'温暖吉他', dur:200 },
-      { name:'霓虹暗涌', genre:'合成器流行', dur:195 },
-      { name:'白色走廊', genre:'安静钢琴', dur:210 },
+      { name:'晨间通勤', genre:'轻电子', dur:185, search:'lofi morning commute chill' },
+      { name:'放学铃响', genre:'尤克里里', dur:175, search:'ukulele cheerful school youth' },
+      { name:'午后的猫', genre:'温暖吉他', dur:200, search:'acoustic guitar warm cozy afternoon' },
+      { name:'霓虹暗涌', genre:'合成器流行', dur:195, search:'synthwave neon night city pop' },
+      { name:'白色走廊', genre:'安静钢琴', dur:210, search:'sad piano hospital quiet melancholy' },
     ],
   },
   republican: {
@@ -62,11 +62,11 @@ const WORLD_TREE = {
     palette: ['#d4a574','#c4956a','#e8c89a','#b8845c','#f0d8b0'],
     bgClass: 'republican',
     tracks: [
-      { name:'暗号', genre:'爵士钢琴', dur:205 },
-      { name:'夜上海', genre:'爵士大乐队', dur:220 },
-      { name:'公馆深处', genre:'钢琴与弦乐', dur:230 },
-      { name:'战地晨曦', genre:'悲悯弦乐', dur:215 },
-      { name:'乱世浮萍', genre:'二胡与提琴', dur:225 },
+      { name:'暗号', genre:'爵士钢琴', dur:205, search:'jazz piano spy noir suspense' },
+      { name:'夜上海', genre:'爵士大乐队', dur:220, search:'vintage jazz big band shanghai' },
+      { name:'公馆深处', genre:'钢琴与弦乐', dur:230, search:'classical piano strings mansion nostalgic' },
+      { name:'战地晨曦', genre:'悲悯弦乐', dur:215, search:'sad strings war field hospital' },
+      { name:'乱世浮萍', genre:'二胡与提琴', dur:225, search:'erhu violin sorrowful wartime' },
     ],
   },
   cyberpunk: {
@@ -75,11 +75,11 @@ const WORLD_TREE = {
     palette: ['#e040fb','#7c4dff','#00e5ff','#d500f9','#448aff'],
     bgClass: 'cyberpunk',
     tracks: [
-      { name:'霓虹雨', genre:'合成波', dur:210 },
-      { name:'金属与神经', genre:'工业氛围', dur:205 },
-      { name:'总部大厦', genre:'极简电子', dur:220 },
-      { name:'地下交易', genre:'黑暗电子', dur:200 },
-      { name:'入侵', genre:'脉冲合成器', dur:195 },
+      { name:'霓虹雨', genre:'合成波', dur:210, search:'synthwave neon rain dark' },
+      { name:'金属与神经', genre:'工业氛围', dur:205, search:'industrial cyberpunk mechanical ambient' },
+      { name:'总部大厦', genre:'极简电子', dur:220, search:'minimal electronic corporate dystopian' },
+      { name:'地下交易', genre:'黑暗电子', dur:200, search:'dark electronic underground black market' },
+      { name:'入侵', genre:'脉冲合成器', dur:195, search:'glitch electronic hacker cyber attack' },
     ],
   },
   apocalypse: {
@@ -88,11 +88,11 @@ const WORLD_TREE = {
     palette: ['#ef4444','#f97316','#fbbf24','#dc2626','#fdba74'],
     bgClass: 'apocalypse',
     tracks: [
-      { name:'寂静之城', genre:'环境嗡鸣', dur:230 },
-      { name:'避难所', genre:'温暖吉他', dur:195 },
-      { name:'无尽公路', genre:'工业摇滚', dur:210 },
-      { name:'拾荒者', genre:'民谣吉他', dur:200 },
-      { name:'尸潮', genre:'恐怖管弦', dur:195 },
+      { name:'寂静之城', genre:'环境嗡鸣', dur:230, search:'ambient drone desolate ruined city' },
+      { name:'避难所', genre:'温暖吉他', dur:195, search:'acoustic hopeful shelter survival' },
+      { name:'无尽公路', genre:'工业摇滚', dur:210, search:'industrial rock road chase wasteland' },
+      { name:'拾荒者', genre:'民谣吉他', dur:200, search:'folk guitar scavenger desolate' },
+      { name:'尸潮', genre:'恐怖管弦', dur:195, search:'horror orchestral zombie horde intense' },
     ],
   },
   crime: {
@@ -101,11 +101,11 @@ const WORLD_TREE = {
     palette: ['#78909c','#90a4ae','#546e7a','#b0bec5','#607d8b'],
     bgClass: 'crime',
     tracks: [
-      { name:'封锁线', genre:'悬疑合成器', dur:205 },
-      { name:'解剖台', genre:'环境嗡鸣', dur:215 },
-      { name:'审讯', genre:'紧张打击乐', dur:195 },
-      { name:'尘封卷宗', genre:'安静氛围', dur:220 },
-      { name:'老宅', genre:'恐怖管弦', dur:210 },
+      { name:'封锁线', genre:'悬疑合成器', dur:205, search:'suspense synth crime scene investigation' },
+      { name:'解剖台', genre:'环境嗡鸣', dur:215, search:'dark ambient autopsy morgue cold' },
+      { name:'审讯', genre:'紧张打击乐', dur:195, search:'tense percussion interrogation thriller' },
+      { name:'尘封卷宗', genre:'安静氛围', dur:220, search:'ambient archive old files quiet' },
+      { name:'老宅', genre:'恐怖管弦', dur:210, search:'horror strings haunted mansion creepy' },
     ],
   },
   steampunk: {
@@ -114,11 +114,11 @@ const WORLD_TREE = {
     palette: ['#cd853f','#daa520','#b8860b','#d2b48c','#f4a460'],
     bgClass: 'steampunk',
     tracks: [
-      { name:'云端之上', genre:'管弦与齿轮', dur:225 },
-      { name:'齿轮交响曲', genre:'打击乐与铜管', dur:210 },
-      { name:'钟楼之巅', genre:'管风琴与钟声', dur:230 },
-      { name:'齿轮之舞', genre:'工业打击乐', dur:205 },
-      { name:'启航', genre:'管弦史诗', dur:215 },
+      { name:'云端之上', genre:'管弦与齿轮', dur:225, search:'orchestral steampunk airship adventure' },
+      { name:'齿轮交响曲', genre:'打击乐与铜管', dur:210, search:'percussion brass mechanical workshop' },
+      { name:'钟楼之巅', genre:'管风琴与钟声', dur:230, search:'organ bells clock tower victorian' },
+      { name:'齿轮之舞', genre:'工业打击乐', dur:205, search:'industrial percussion gears factory' },
+      { name:'启航', genre:'管弦史诗', dur:215, search:'epic orchestral departure sky port' },
     ],
   },
   space: {
@@ -127,11 +127,11 @@ const WORLD_TREE = {
     palette: ['#38bdf8','#22d3ee','#818cf8','#67e9f9','#7dd3fc'],
     bgClass: 'space',
     tracks: [
-      { name:'星舰日常', genre:'太空合成器', dur:230 },
-      { name:'轨道站', genre:'氛围合成器', dur:240 },
-      { name:'异星黎明', genre:'世界音乐融合', dur:220 },
-      { name:'星港蓝调', genre:'爵士电子', dur:195 },
-      { name:'跃迁', genre:'前卫电子', dur:210 },
+      { name:'星舰日常', genre:'太空合成器', dur:230, search:'space ambient starship sci-fi calm' },
+      { name:'轨道站', genre:'氛围合成器', dur:240, search:'ambient space station orbital lonely' },
+      { name:'异星黎明', genre:'世界音乐融合', dur:220, search:'ethnic fusion alien colony dawn' },
+      { name:'星港蓝调', genre:'爵士电子', dur:195, search:'jazz electronic space bar lounge' },
+      { name:'跃迁', genre:'前卫电子', dur:210, search:'experimental electronic wormhole warp' },
     ],
   },
 };
