@@ -674,54 +674,37 @@ function setupUploadDialog() {
   });
 }
 
-// ---- Particles ----
+// ---- World Scene Particles ----
 function startParticles() {
+  // Global background particles (subtle)
   const bgCanvas = document.getElementById('global-bg');
   const bgCtx = bgCanvas.getContext('2d');
   let w, h;
-  const particles = Array.from({ length: 50 }, () => ({
+  const particles = Array.from({ length: 40 }, () => ({
     x: 0, y: Math.random() * window.innerHeight,
-    size: Math.random() * 2 + 0.8,
-    speed: Math.random() * 0.6 + 0.2,
-    opacity: Math.random() * 0.5 + 0.15,
-    reset() { this.x = Math.random() * w; this.y = -10; this.opacity = Math.random() * 0.5 + 0.15; },
+    size: Math.random() * 1.5 + 0.5,
+    speed: Math.random() * 0.4 + 0.1,
+    opacity: Math.random() * 0.4 + 0.1,
+    reset() { this.x = Math.random() * w; this.y = -10; },
   }));
   function resize() { w = bgCanvas.width = window.innerWidth; h = bgCanvas.height = window.innerHeight; }
   window.addEventListener('resize', resize); resize();
-
-  function frame() {
+  function bgFrame() {
     bgCtx.clearRect(0, 0, w, h);
-    bgCtx.fillStyle = 'rgba(0,0,0,0.15)';
-    bgCtx.fillRect(0, 0, w, h);
-    const scene = App.getCurrentSceneCached();
-    const pal = scene?.palette || ['#c4a0ff'];
     particles.forEach(p => {
-      p.y += p.speed;
-      p.opacity += (Math.random() - 0.5) * 0.006;
-      p.opacity = Math.max(0.08, Math.min(0.5, p.opacity));
-      if (p.y > h + 10) p.reset();
-      bgCtx.beginPath();
-      bgCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      bgCtx.fillStyle = pal[Math.floor(Math.random() * pal.length)];
-      bgCtx.globalAlpha = p.opacity * 0.4;
-      bgCtx.fill();
-      bgCtx.globalAlpha = 1;
+      p.y += p.speed; if (p.y > h + 10) p.reset();
+      bgCtx.beginPath(); bgCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      bgCtx.fillStyle = 'rgba(255,255,255,0.06)'; bgCtx.fill();
     });
-    requestAnimationFrame(frame);
+    requestAnimationFrame(bgFrame);
   }
-  frame();
+  bgFrame();
 
-  // World visual canvas
+  // World visual canvas — theme-specific animations
   const vc = document.getElementById('visual-canvas');
   if (!vc) return;
   const vctx = vc.getContext('2d');
-  const vparticles = Array.from({ length: 60 }, () => ({
-    x: 0, y: Math.random() * (window.innerHeight * 0.7),
-    size: Math.random() * 4 + 1.5,
-    vx: (Math.random() - 0.5) * 0.5, vy: -(Math.random() * 0.8 + 0.2),
-    opacity: Math.random() * 0.6 + 0.2, wobble: Math.random() * Math.PI * 2,
-    reset() { this.x = Math.random() * vc.width; this.y = vc.height + 20; },
-  }));
+
   function vResize() {
     const parent = vc.parentElement;
     if (!parent) return;
@@ -729,32 +712,162 @@ function startParticles() {
     vc.height = parent.offsetHeight;
   }
   window.addEventListener('resize', vResize);
-  function vFrame() {
-    if (App.state.view !== 'world') { requestAnimationFrame(vFrame); return; }
-    vResize();
-    vctx.clearRect(0, 0, vc.width, vc.height);
+
+  // Scene state per theme
+  let vParticles = [];
+  let vTime = 0;
+  const sceneConfigs = {
+    ancient: { count: 50, type: 'petals', colors: ['#fbbf2488','#f59e0b66','#d9770644','#fde68a44'] },
+    fantasy: { count: 40, type: 'magic', colors: ['#c4a0ff88','#a78bfa66','#d8b4fe44','#e9d5ff44'] },
+    urban: { count: 60, type: 'rain', colors: ['#f472b666','#fb718544','#a78bfa44'] },
+    republican: { count: 35, type: 'dust', colors: ['#d4a57466','#c4956a44','#f0d8b044'] },
+    cyberpunk: { count: 55, type: 'neonRain', colors: ['#e040fb88','#00e5ff88','#7c4dff66'] },
+    apocalypse: { count: 45, type: 'embers', colors: ['#ef444488','#f9731666','#fbbf2444'] },
+    crime: { count: 30, type: 'fog', colors: ['#78909c44','#90a4ae33','#b0bec522'] },
+    steampunk: { count: 40, type: 'gears', colors: ['#cd853f88','#daa52066','#d2b48c44'] },
+    space: { count: 60, type: 'stars', colors: ['#38bdf888','#22d3ee66','#818cf844'] },
+  };
+
+  function initScene() {
     const scene = App.getCurrentSceneCached();
-    const pal = scene?.palette || ['#c4a0ff'];
-    vparticles.forEach(p => {
-      p.wobble += 0.01;
-      p.x += p.vx + Math.sin(p.wobble) * 0.2;
-      p.y += p.vy;
-      if (p.y < -20) p.reset();
-      p.opacity += (Math.random() - 0.5) * 0.01;
-      p.opacity = Math.max(0.1, Math.min(0.7, p.opacity));
-      vctx.beginPath();
-      vctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      vctx.fillStyle = pal[Math.floor(Math.random() * pal.length)];
-      vctx.globalAlpha = p.opacity;
-      vctx.shadowColor = pal[Math.floor(Math.random() * pal.length)];
-      vctx.shadowBlur = p.size * 4;
-      vctx.fill();
-      vctx.shadowBlur = 0;
+    const cfg = sceneConfigs[scene?.bgClass] || sceneConfigs.fantasy;
+    vParticles = [];
+    vResize();
+    for (let i = 0; i < cfg.count; i++) {
+      vParticles.push({
+        x: Math.random() * vc.width,
+        y: Math.random() * vc.height,
+        size: Math.random() * 3 + 1,
+        speed: Math.random() * 0.8 + 0.3,
+        opacity: Math.random() * 0.6 + 0.2,
+        color: cfg.colors[Math.floor(Math.random() * cfg.colors.length)],
+        angle: Math.random() * Math.PI * 2,
+        wobble: Math.random() * 0.02,
+        life: Math.random(),
+      });
+    }
+  }
+
+  function drawScene() {
+    if (App.state.view !== 'world') { requestAnimationFrame(drawScene); return; }
+    vResize();
+    vTime += 0.016;
+    const scene = App.getCurrentSceneCached();
+    const cfg = sceneConfigs[scene?.bgClass] || sceneConfigs.fantasy;
+
+    vctx.clearRect(0, 0, vc.width, vc.height);
+
+    // Draw center ambient glow
+    const glowGrad = vctx.createRadialGradient(vc.width/2, vc.height/2, 0, vc.width/2, vc.height/2, Math.min(vc.width, vc.height) * 0.6);
+    glowGrad.addColorStop(0, 'rgba(255,255,255,0.03)');
+    glowGrad.addColorStop(1, 'transparent');
+    vctx.fillStyle = glowGrad;
+    vctx.fillRect(0, 0, vc.width, vc.height);
+
+    vParticles.forEach(p => {
+      p.life += 0.003;
+      if (p.life > 1) { p.life = 0; p.x = Math.random() * vc.width; p.y = vc.height + 10; }
+
+      switch (cfg.type) {
+        case 'petals': // 古风：花瓣飘落
+          p.y += p.speed * 0.6;
+          p.x += Math.sin(vTime * 2 + p.angle) * 0.4;
+          if (p.y > vc.height + 20) { p.y = -20; p.x = Math.random() * vc.width; }
+          vctx.save(); vctx.translate(p.x, p.y); vctx.rotate(Math.sin(vTime + p.angle) * 0.5);
+          vctx.fillStyle = p.color; vctx.globalAlpha = p.opacity;
+          vctx.fillRect(-p.size, -p.size * 0.5, p.size * 2, p.size);
+          vctx.restore();
+          break;
+        case 'magic': // 西幻：魔法光点上升
+          p.y -= p.speed * 0.5;
+          p.x += Math.sin(vTime * 3 + p.angle) * 0.3;
+          if (p.y < -20) { p.y = vc.height + 20; p.x = Math.random() * vc.width; }
+          vctx.beginPath(); vctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          vctx.fillStyle = p.color; vctx.globalAlpha = p.opacity;
+          vctx.shadowColor = p.color; vctx.shadowBlur = p.size * 3;
+          vctx.fill(); vctx.shadowBlur = 0;
+          break;
+        case 'rain': // 都市：细雨下落
+          p.y += p.speed * 2;
+          p.x += Math.sin(vTime + p.angle) * 0.2;
+          if (p.y > vc.height + 10) { p.y = -10; p.x = Math.random() * vc.width; }
+          vctx.strokeStyle = p.color; vctx.globalAlpha = p.opacity * 0.7;
+          vctx.lineWidth = 0.5; vctx.beginPath();
+          vctx.moveTo(p.x, p.y); vctx.lineTo(p.x - 0.5, p.y + p.size * 3);
+          vctx.stroke();
+          break;
+        case 'dust': // 民国：尘埃漂浮
+          p.y -= p.speed * 0.2;
+          p.x += (Math.random() - 0.5) * 0.3;
+          if (p.y < -10) { p.y = vc.height + 10; p.x = Math.random() * vc.width; }
+          vctx.beginPath(); vctx.arc(p.x, p.y, p.size * 0.8, 0, Math.PI * 2);
+          vctx.fillStyle = p.color; vctx.globalAlpha = p.opacity * 0.5;
+          vctx.fill();
+          break;
+        case 'neonRain': // 赛博：霓虹雨滴
+          p.y += p.speed * 2.5;
+          if (p.y > vc.height + 10) { p.y = -10; p.x = Math.random() * vc.width; }
+          vctx.strokeStyle = p.color; vctx.globalAlpha = p.opacity;
+          vctx.lineWidth = 1; vctx.beginPath();
+          vctx.moveTo(p.x, p.y); vctx.lineTo(p.x, p.y + p.size * 4);
+          vctx.stroke();
+          vctx.shadowColor = p.color; vctx.shadowBlur = 4;
+          vctx.stroke(); vctx.shadowBlur = 0;
+          break;
+        case 'embers': // 废土：火星飘散
+          p.y -= p.speed * 0.7;
+          p.x += (Math.random() - 0.5) * 0.6;
+          if (p.y < -10) { p.y = vc.height + 10; p.x = Math.random() * vc.width; }
+          vctx.beginPath(); vctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          vctx.fillStyle = p.color; vctx.globalAlpha = p.opacity;
+          vctx.shadowColor = '#ff6600'; vctx.shadowBlur = p.size * 2;
+          vctx.fill(); vctx.shadowBlur = 0;
+          break;
+        case 'fog': // 悬疑：迷雾飘动
+          p.x += Math.sin(vTime * 0.5 + p.angle) * 0.5;
+          p.y += p.speed * 0.15;
+          if (p.x > vc.width + 50) p.x = -50;
+          if (p.x < -50) p.x = vc.width + 50;
+          vctx.beginPath(); vctx.arc(p.x, p.y, p.size * 6, 0, Math.PI * 2);
+          vctx.fillStyle = p.color; vctx.globalAlpha = p.opacity * 0.3;
+          vctx.fill();
+          break;
+        case 'gears': // 蒸汽朋克：齿轮粒子
+          p.y -= p.speed * 0.3;
+          p.angle += 0.01;
+          if (p.y < -20) { p.y = vc.height + 20; p.x = Math.random() * vc.width; }
+          vctx.save(); vctx.translate(p.x, p.y); vctx.rotate(p.angle);
+          vctx.fillStyle = p.color; vctx.globalAlpha = p.opacity;
+          const s = p.size * 2;
+          vctx.fillRect(-s/2, -s/6, s, s/3);
+          vctx.fillRect(-s/6, -s/2, s/3, s);
+          vctx.restore();
+          break;
+        case 'stars': // 太空：星空流转
+          p.y += p.speed * 0.3;
+          p.x += Math.sin(vTime * 0.3 + p.angle) * 0.2;
+          if (p.y > vc.height + 10) { p.y = -10; p.x = Math.random() * vc.width; }
+          p.opacity = 0.3 + Math.sin(vTime * 3 + p.angle) * 0.3;
+          vctx.beginPath(); vctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          vctx.fillStyle = '#ffffff'; vctx.globalAlpha = Math.abs(p.opacity);
+          vctx.shadowColor = '#ffffff'; vctx.shadowBlur = p.size * 2;
+          vctx.fill(); vctx.shadowBlur = 0;
+          break;
+      }
       vctx.globalAlpha = 1;
     });
-    requestAnimationFrame(vFrame);
+    requestAnimationFrame(drawScene);
   }
-  vFrame();
+
+  initScene();
+  drawScene();
+
+  // Re-init when scene changes
+  const origNav = App.navigateToScene.bind(App);
+  App.navigateToScene = async function(sceneId) {
+    await origNav(sceneId);
+    initScene();
+  };
 }
 
 // Start
