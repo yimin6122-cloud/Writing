@@ -90,7 +90,6 @@ const App = {
 
     // Reset writing
     Writer.reset();
-    this.setSidebarMode('player');
 
     this.clearSceneCache();
   },
@@ -106,13 +105,32 @@ const App = {
     renderPlaylist();
   },
 
-  // ---- Sidebar ----
-  setSidebarMode(mode) {
-    this.state.sidebarMode = mode;
-    document.querySelectorAll('.sidebar-mode').forEach(m => {
+  // ---- Panel ----
+  panelMode: 'playlist',
+  panelOpen: false,
+
+  openPanel() {
+    this.panelOpen = true;
+    document.getElementById('panel-overlay').classList.add('show');
+    this.setPanelMode(this.panelMode);
+  },
+
+  closePanel() {
+    this.panelOpen = false;
+    document.getElementById('panel-overlay').classList.remove('show');
+  },
+
+  togglePanel() {
+    if (this.panelOpen) this.closePanel();
+    else this.openPanel();
+  },
+
+  setPanelMode(mode) {
+    this.panelMode = mode;
+    document.querySelectorAll('.panel-mode').forEach(m => {
       m.classList.toggle('active', m.dataset.mode === mode);
     });
-    const panes = { player: 'pane-player', playlist: 'pane-playlist', noise: 'pane-noise', writing: 'pane-writing' };
+    const panes = { playlist: 'pane-playlist', noise: 'pane-noise', writing: 'pane-writing' };
     Object.entries(panes).forEach(([k, id]) => {
       const el = document.getElementById(id);
       if (el) el.style.display = k === mode ? 'flex' : 'none';
@@ -120,22 +138,6 @@ const App = {
     if (mode === 'playlist') renderPlaylist();
     else if (mode === 'noise') renderNoise();
     else if (mode === 'writing') { if (!Writer.currentDocId) Writer.loadList(); }
-    if (this.state.sidebarCollapsed) this.toggleSidebar();
-  },
-
-  toggleSidebar() {
-    this.state.sidebarCollapsed = !this.state.sidebarCollapsed;
-    const sb = document.getElementById('world-sidebar');
-    const toggle = document.getElementById('sidebar-toggle');
-    if (this.state.sidebarCollapsed) {
-      sb.classList.add('collapsed');
-      toggle.textContent = '▶';
-      toggle.classList.add('flip');
-    } else {
-      sb.classList.remove('collapsed');
-      toggle.textContent = '◀';
-      toggle.classList.remove('flip');
-    }
   },
 
   // ---- Dialogs ----
@@ -171,7 +173,7 @@ const App = {
 };
 
 // Expose on App for cross-module access
-App.updateSaveStatus = (text) => { const el = document.getElementById('save-status'); if (el) el.textContent = text; };
+App.updateSaveStatus = () => {}; // silent auto-save
 App.showWritingEditor = () => { const wp = document.getElementById('writing-panel'); const dl = document.getElementById('docs-list-panel'); if (wp) wp.style.display = ''; if (dl) dl.style.display = 'none'; };
 App.showDocList = () => { const wp = document.getElementById('writing-panel'); const dl = document.getElementById('docs-list-panel'); if (wp) wp.style.display = 'none'; if (dl) dl.style.display = ''; };
 App.renderPlayer = renderPlayer;
@@ -208,10 +210,10 @@ async function initApp() {
 
 // ---- Event Delegation ----
 function setupEventDelegation() {
-  // Sidebar mode tabs
-  document.getElementById('world-view').addEventListener('click', e => {
-    const modeBtn = e.target.closest('.sidebar-mode');
-    if (modeBtn) App.setSidebarMode(modeBtn.dataset.mode);
+  // Panel mode tabs
+  document.getElementById('panel-overlay').addEventListener('click', e => {
+    const modeBtn = e.target.closest('.panel-mode');
+    if (modeBtn) App.setPanelMode(modeBtn.dataset.mode);
   });
 
   // Scene tabs (navigation + menu)
@@ -335,10 +337,14 @@ function setupEventDelegation() {
     document.getElementById('vol-pct').textContent = e.target.value + '%';
   });
 
+  // Panel trigger
+  document.getElementById('panel-trigger').addEventListener('click', () => App.togglePanel());
+  document.getElementById('panel-close').addEventListener('click', () => App.closePanel());
+  document.getElementById('panel-backdrop').addEventListener('click', () => App.closePanel());
+
   // Back buttons
   document.getElementById('back-btn').addEventListener('click', () => App.navigateTo('home'));
   document.getElementById('forum-back-btn').addEventListener('click', () => App.navigateTo('home'));
-  document.getElementById('sidebar-toggle').addEventListener('click', () => App.toggleSidebar());
 
   // Playlist buttons
   document.getElementById('btn-copy-to').addEventListener('click', async () => {
@@ -385,7 +391,7 @@ function setupEventDelegation() {
   // Float writer
   document.getElementById('fw-save').addEventListener('click', async () => {
     document.getElementById('writing-editor').innerHTML = document.getElementById('fw-editor').innerHTML;
-    document.getElementById('doc-title').value = document.getElementById('fw-title').textContent;
+    document.getElementById('doc-title').value = document.getElementById('fw-title-input').value;
     await Writer.save();
   });
   document.getElementById('fw-close').addEventListener('click', () => {
@@ -393,8 +399,10 @@ function setupEventDelegation() {
   });
   document.getElementById('fw-dock').addEventListener('click', () => {
     document.getElementById('writing-editor').innerHTML = document.getElementById('fw-editor').innerHTML;
+    document.getElementById('doc-title').value = document.getElementById('fw-title-input').value;
     document.getElementById('float-writer').classList.remove('show');
-    App.setSidebarMode('writing');
+    App.setPanelMode('writing');
+    App.openPanel();
   });
 
   // Ctrl+S

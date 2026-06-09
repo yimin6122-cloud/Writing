@@ -111,10 +111,10 @@ const Writer = {
     const sceneId = App.state.currentSceneId;
     if (!sceneId) return;
     const fw = document.getElementById('float-writer');
-    const fwTitle = document.getElementById('fw-title');
+    const fwTitle = document.getElementById('fw-title-input');
     const fwEditor = document.getElementById('fw-editor');
     if (!fw || !fwEditor) return;
-    fwTitle.textContent = this.currentTitle || document.getElementById('doc-title')?.value || '浮窗写作';
+    if (fwTitle) fwTitle.value = this.currentTitle || document.getElementById('doc-title')?.value || '';
     fwEditor.innerHTML = document.getElementById('writing-editor')?.innerHTML || '';
     fw.classList.add('show');
     if (fw.offsetLeft < 0) fw.style.left = '60px';

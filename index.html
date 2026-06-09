@@ -8,14 +8,12 @@
 <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
 </head>
 <body>
-
 <canvas id="global-bg"></canvas>
 <input type="file" id="file-input" accept="audio/*" multiple>
 
 <!-- HOME -->
 <div class="view active" id="home-view">
-  <div class="hero">
-    <div class="hero-bg"></div>
+  <div class="hero"><div class="hero-bg"></div>
     <div class="hero-overlay">
       <h1 class="hero-title">灵感音域</h1>
       <p class="hero-subtitle">INSPIRE · 为同人创作注入灵魂配乐</p>
@@ -33,6 +31,11 @@
   <div class="scene-image-bg" id="scene-image-bg"></div>
   <canvas id="world-particles"></canvas>
 
+  <div class="world-visual-label" id="world-visual-label">
+    <div class="world-name" id="world-name"></div>
+    <div class="world-desc" id="world-desc"></div>
+  </div>
+
   <div class="world-topbar">
     <button class="back-btn" id="back-btn">&larr; 首页</button>
     <div class="subworld-tabs" id="subworld-tabs"></div>
@@ -41,98 +44,96 @@
   <div class="world-content">
     <div class="world-visual">
       <canvas id="visual-canvas"></canvas>
-      <div class="world-visual-label">
-        <div class="world-name" id="world-name"></div>
-        <div class="world-desc" id="world-desc"></div>
-      </div>
     </div>
 
-    <div class="sidebar-toggle" id="sidebar-toggle" title="收起面板">&blacktriangleleft;</div>
-
-    <div class="world-sidebar" id="world-sidebar">
-      <div class="sidebar-modes">
-        <div class="sidebar-mode active" data-mode="player">播放器</div>
-        <div class="sidebar-mode" data-mode="playlist">歌单</div>
-        <div class="sidebar-mode" data-mode="noise">白噪音</div>
-        <div class="sidebar-mode" data-mode="writing">写作</div>
+    <!-- Compact player — always visible on right -->
+    <div class="compact-player" id="compact-player">
+      <div class="cp-inner">
+        <div class="np-row">
+          <div class="np-cover-mini"><canvas id="np-cover-canvas" width="52" height="52"></canvas></div>
+          <div class="np-info-mini">
+            <div class="np-title" id="np-title">选择一首曲目</div>
+            <div class="np-artist" id="np-artist">--</div>
+          </div>
+        </div>
+        <div class="progress-area">
+          <div class="progress-track" id="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+          <div class="progress-times"><span id="time-current">00:00</span><span id="time-total">00:00</span></div>
+        </div>
+        <div class="player-ctrls">
+          <button class="ctrl-btn small" id="btn-shuffle">🔀</button>
+          <button class="ctrl-btn small" id="btn-prev">⏮</button>
+          <button class="ctrl-btn play-btn" id="btn-play">▶</button>
+          <button class="ctrl-btn small" id="btn-next">⏭</button>
+          <button class="ctrl-btn small" id="btn-loop">🔁</button>
+        </div>
+        <div class="volume-row">
+          <span style="opacity:0.6;font-size:0.7rem">🔈</span>
+          <input type="range" class="vol-slider" id="vol-slider" min="0" max="100" value="70">
+          <span style="font-size:var(--text-xs);color:var(--text-muted)" id="vol-pct">70%</span>
+        </div>
       </div>
+    </div>
+  </div>
 
-      <!-- Player -->
-      <div class="sidebar-pane" id="pane-player">
-        <div class="player-panel">
-          <div class="np-row">
-            <div class="np-cover-mini"><canvas id="np-cover-canvas" width="56" height="56"></canvas></div>
-            <div class="np-info-mini">
-              <div class="np-title" id="np-title">选择一首曲目</div>
-              <div class="np-artist" id="np-artist">--</div>
+  <button class="panel-trigger" id="panel-trigger" title="打开面板">+</button>
+
+  <!-- Panel overlay -->
+  <div class="panel-overlay" id="panel-overlay">
+    <div class="panel-backdrop" id="panel-backdrop"></div>
+    <div class="panel-sheet">
+      <div class="panel-sheet-header">
+        <span class="ps-title">面板</span>
+        <div class="panel-modes">
+          <div class="panel-mode active" data-mode="playlist">歌单</div>
+          <div class="panel-mode" data-mode="noise">白噪音</div>
+          <div class="panel-mode" data-mode="writing">写作</div>
+        </div>
+        <button class="ps-close" id="panel-close">×</button>
+      </div>
+      <div class="panel-sheet-body">
+        <div id="pane-playlist" style="display:flex;flex:1;flex-direction:column">
+          <div class="playlist-panel" style="flex:1">
+            <div class="pl-header">
+              <span>歌单</span>
+              <div style="display:flex;gap:4px">
+                <button class="pl-action-btn" id="btn-copy-from">导入</button>
+                <button class="pl-action-btn" id="btn-copy-to">复制</button>
+                <button class="pl-action-btn" id="pl-upload-btn">+ 上传</button>
+              </div>
             </div>
-          </div>
-          <div class="progress-area">
-            <div class="progress-track" id="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
-            <div class="progress-times"><span id="time-current">00:00</span><span id="time-total">00:00</span></div>
-          </div>
-          <div class="player-ctrls">
-            <button class="ctrl-btn" id="btn-shuffle">&#x1F500;</button>
-            <button class="ctrl-btn" id="btn-prev">&#x23EE;</button>
-            <button class="ctrl-btn play-btn" id="btn-play">&#x25B6;</button>
-            <button class="ctrl-btn" id="btn-next">&#x23ED;</button>
-            <button class="ctrl-btn" id="btn-loop">&#x1F501;</button>
-          </div>
-          <div class="volume-row">
-            <span style="opacity:0.6">&#x1F508;</span>
-            <input type="range" class="vol-slider" id="vol-slider" min="0" max="100" value="70">
-            <span style="font-size:var(--text-caption);color:var(--text-muted)" id="vol-pct">70%</span>
+            <div id="playlist-items"></div>
           </div>
         </div>
-      </div>
-
-      <!-- Playlist -->
-      <div class="sidebar-pane" id="pane-playlist" style="display:none;flex:1;min-height:0;flex-direction:column">
-        <div class="playlist-panel">
-          <div class="pl-header">
-            <span>歌单</span>
-            <div style="display:flex;gap:4px">
-              <button class="pl-action-btn" id="btn-copy-from">导入</button>
-              <button class="pl-action-btn" id="btn-copy-to">复制</button>
-              <button class="pl-action-btn" id="pl-upload-btn">+ 上传</button>
+        <div id="pane-noise" style="display:none;flex:1;flex-direction:column">
+          <div class="noise-panel">
+            <div class="noise-master">
+              <span class="nm-label">总音量</span>
+              <input type="range" class="nm-slider" id="noise-master-vol" min="0" max="100" value="60">
+              <span style="font-size:var(--text-xs);color:var(--text-muted)" id="noise-master-pct">60%</span>
             </div>
+            <div class="noise-presets" id="noise-presets"></div>
+            <div class="noise-grid" id="noise-grid"></div>
           </div>
-          <div id="playlist-items"></div>
         </div>
-      </div>
-
-      <!-- Noise -->
-      <div class="sidebar-pane" id="pane-noise" style="display:none;flex:1;min-height:0;flex-direction:column">
-        <div class="noise-panel">
-          <div class="noise-master">
-            <span class="nm-label">总音量</span>
-            <input type="range" class="nm-slider" id="noise-master-vol" min="0" max="100" value="60">
-            <span style="font-size:var(--text-caption);color:var(--text-muted)" id="noise-master-pct">60%</span>
+        <div id="pane-writing" style="display:none;flex:1;flex-direction:column">
+          <div class="writing-panel" id="writing-panel">
+            <div class="writing-topbar">
+              <input type="text" class="doc-title" id="doc-title" placeholder="文档标题...">
+              <button class="doc-btn" id="btn-doc-float">浮窗</button>
+              <button class="doc-btn" id="btn-doc-new">+ 新建</button>
+              <button class="doc-btn" id="btn-doc-list">列表</button>
+            </div>
+            <div class="writing-editor" id="writing-editor" contenteditable="true"></div>
           </div>
-          <div class="noise-presets" id="noise-presets"></div>
-          <div class="noise-grid" id="noise-grid"></div>
-        </div>
-      </div>
-
-      <!-- Writing -->
-      <div class="sidebar-pane" id="pane-writing" style="display:none;flex:1;min-height:0;flex-direction:column">
-        <div class="writing-panel" id="writing-panel">
-          <div class="writing-topbar">
-            <input type="text" class="doc-title" id="doc-title" placeholder="文档标题...">
-            <span class="save-status" id="save-status">已保存</span>
-            <button class="doc-btn" id="btn-doc-float" title="弹出浮窗">浮窗</button>
-            <button class="doc-btn" id="btn-doc-new">+ 新建</button>
-            <button class="doc-btn" id="btn-doc-list">列表</button>
+          <div class="writing-panel" id="docs-list-panel" style="display:none">
+            <div class="writing-topbar">
+              <span style="font-weight:600;flex:1">我的文档</span>
+              <button class="doc-btn" id="btn-doc-new2">+ 新建</button>
+              <button class="doc-btn" id="btn-doc-back">返回</button>
+            </div>
+            <div class="docs-list" id="docs-list"></div>
           </div>
-          <div class="writing-editor" id="writing-editor" contenteditable="true"></div>
-        </div>
-        <div class="writing-panel" id="docs-list-panel" style="display:none">
-          <div class="writing-topbar">
-            <span style="font-weight:600;flex:1;font-size:var(--text-body)">我的文档</span>
-            <button class="doc-btn" id="btn-doc-new2">+ 新建</button>
-            <button class="doc-btn" id="btn-doc-back">返回</button>
-          </div>
-          <div class="docs-list" id="docs-list"></div>
         </div>
       </div>
     </div>
@@ -141,10 +142,10 @@
   <!-- Float Writer -->
   <div class="float-writer" id="float-writer" style="top:120px;left:60px">
     <div class="fw-titlebar" id="fw-titlebar">
-      <span class="fw-title" id="fw-title">浮窗写作</span>
-      <button class="fw-btn save" id="fw-save" title="保存">S</button>
-      <button class="fw-btn dock" id="fw-dock" title="收回">D</button>
-      <button class="fw-btn close" id="fw-close" title="关闭">x</button>
+      <input type="text" class="fw-title-input" id="fw-title-input" placeholder="标题...">
+      <button class="fw-btn save" id="fw-save">保存</button>
+      <button class="fw-btn dock" id="fw-dock">收回</button>
+      <button class="fw-btn close" id="fw-close">×</button>
     </div>
     <div class="fw-editor" id="fw-editor" contenteditable="true"></div>
   </div>
@@ -167,7 +168,7 @@
     <div class="field"><label>归属分类</label><select id="new-scene-cat"></select></div>
     <div class="field"><label>背景图片（可选）</label><input type="file" id="new-scene-img" accept="image/*"><div class="img-preview" id="new-scene-preview">图片预览</div></div>
     <div class="field"><label>氛围描述</label><input type="text" id="new-scene-desc" placeholder="例如：霓虹灯下的孤独吧台"></div>
-    <div class="dialog-btns"><button class="btn" id="btn-cancel-create">取消</button><button class="btn primary" id="btn-confirm-create">创建场景</button></div>
+    <div class="dialog-btns"><button class="btn" id="btn-cancel-create">取消</button><button class="btn primary" id="btn-confirm-create">创建</button></div>
   </div>
 </div>
 
@@ -207,13 +208,13 @@
     </div>
     <div id="upload-pane-url" style="display:none">
       <p style="font-size:var(--text-body-sm);color:var(--text-tertiary);margin-bottom:12px">粘贴直接的 MP3 音频链接</p>
-      <input type="text" id="url-input" placeholder="https://... .mp3" style="width:100%;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--glass-border);background:rgba(255,255,255,0.05);color:var(--text-primary);font-size:var(--text-body);font-family:var(--font-sans);outline:none;margin-bottom:8px">
-      <input type="text" id="url-name" placeholder="曲目名称" style="width:100%;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--glass-border);background:rgba(255,255,255,0.05);color:var(--text-primary);font-size:var(--text-body);font-family:var(--font-sans);outline:none;margin-bottom:12px">
+      <input type="text" id="url-input" placeholder="https://... .mp3" style="width:100%;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--glass-border);background:rgba(255,255,255,0.05);color:var(--text-primary);font-size:var(--text-body);font-family:var(--font);outline:none;margin-bottom:8px">
+      <input type="text" id="url-name" placeholder="曲目名称" style="width:100%;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--glass-border);background:rgba(255,255,255,0.05);color:var(--text-primary);font-size:var(--text-body);font-family:var(--font);outline:none;margin-bottom:12px">
       <button class="btn primary" id="btn-add-url" style="width:100%">添加到歌单</button>
     </div>
     <div id="upload-pane-search" style="display:none">
       <p style="font-size:var(--text-body-sm);color:var(--text-tertiary);margin-bottom:12px">在 Pixabay 搜索免费商用音乐</p>
-      <select id="search-genre" style="width:100%;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--glass-border);background:rgba(255,255,255,0.05);color:var(--text-primary);font-size:var(--text-body);font-family:var(--font-sans);outline:none;margin-bottom:12px">
+      <select id="search-genre" style="width:100%;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--glass-border);background:rgba(255,255,255,0.05);color:var(--text-primary);font-size:var(--text-body);font-family:var(--font);outline:none;margin-bottom:12px">
         <option value="epic">史诗/管弦</option><option value="ambient">氛围/环境</option><option value="cinematic">电影配乐</option><option value="classical">古典/中国风</option><option value="electronic">电子/合成器</option><option value="lofi">Lo-fi/休闲</option><option value="dark">暗黑/悬疑</option>
       </select>
       <button class="btn primary" id="btn-open-pixabay" style="width:100%;margin-bottom:8px">打开 Pixabay 搜索</button>
@@ -223,7 +224,6 @@
   </div>
 </div>
 
-<!-- JS Modules -->
 <script src="js/config.js"></script>
 <script src="js/db.js"></script>
 <script src="js/player.js"></script>
@@ -231,6 +231,5 @@
 <script src="js/writer.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/app.js"></script>
-
 </body>
 </html>

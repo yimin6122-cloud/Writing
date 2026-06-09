@@ -180,10 +180,7 @@ function renderNoise() {
 }
 
 // ---- Writing Status ----
-function updateSaveStatus(text) {
-  const el = document.getElementById('save-status');
-  if (el) el.textContent = text;
-}
+// No save status shown — auto-save is silent
 function showWritingEditor() {
   const wp = document.getElementById('writing-panel');
   const dl = document.getElementById('docs-list-panel');
