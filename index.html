@@ -92,6 +92,7 @@
         <div class="panel-modes">
           <div class="panel-mode active" data-mode="playlist">歌单</div>
           <div class="panel-mode" data-mode="noise">白噪音</div>
+          <div class="panel-mode" data-mode="inspire">灵感</div>
           <div class="panel-mode" data-mode="oc">OC设定</div>
           <div class="panel-mode" data-mode="writing">写作</div>
         </div>
@@ -120,6 +121,16 @@
             </div>
             <div class="noise-presets" id="noise-presets"></div>
             <div class="noise-grid" id="noise-grid"></div>
+          </div>
+        </div>
+        <div id="pane-inspire" style="display:none;flex:1;flex-direction:column">
+          <div class="inspire-panel">
+            <div class="inspire-display" id="inspire-display">点击下方按钮获取创作灵感</div>
+            <div class="inspire-btns">
+              <button class="btn primary" id="btn-inspire-scene">场景灵感</button>
+              <button class="btn" id="btn-inspire-dialogue">对白灵感</button>
+              <button class="btn" id="btn-inspire-plot">剧情转折</button>
+            </div>
           </div>
         </div>
         <div id="pane-oc" style="display:none;flex:1;flex-direction:column">

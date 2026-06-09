@@ -130,7 +130,7 @@ const App = {
     document.querySelectorAll('.panel-mode').forEach(m => {
       m.classList.toggle('active', m.dataset.mode === mode);
     });
-    const panes = { playlist: 'pane-playlist', noise: 'pane-noise', oc: 'pane-oc', writing: 'pane-writing' };
+    const panes = { playlist: 'pane-playlist', noise: 'pane-noise', inspire: 'pane-inspire', oc: 'pane-oc', writing: 'pane-writing' };
     Object.entries(panes).forEach(([k, id]) => {
       const el = document.getElementById(id);
       if (el) el.style.display = k === mode ? 'flex' : 'none';
@@ -419,6 +419,23 @@ function showTabDropdown(anchor, sceneId) {
       });
     });
     App.showDialog('dlg-import', true);
+  });
+
+  // Inspire buttons
+  document.getElementById('btn-inspire-scene').addEventListener('click', () => {
+    const p = getRandomPrompt('scene');
+    const el = document.getElementById('inspire-display');
+    el.textContent = p; el.classList.add('active');
+  });
+  document.getElementById('btn-inspire-dialogue').addEventListener('click', () => {
+    const p = getRandomPrompt('dialogue');
+    const el = document.getElementById('inspire-display');
+    el.textContent = p; el.classList.add('active');
+  });
+  document.getElementById('btn-inspire-plot').addEventListener('click', () => {
+    const p = getRandomPrompt('plot');
+    const el = document.getElementById('inspire-display');
+    el.textContent = p; el.classList.add('active');
   });
 
   // OC buttons
