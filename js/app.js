@@ -227,18 +227,7 @@ function setupEventDelegation() {
     const menuBtn = e.target.closest('.tab-menu');
     if (menuBtn) {
       e.stopPropagation();
-      const sceneId = menuBtn.dataset.scene;
-      const rect = menuBtn.getBoundingClientRect();
-      document.querySelectorAll('.tab-dropdown').forEach(d => d.remove());
-      const dd = document.createElement('div'); dd.className = 'tab-dropdown';
-      dd.innerHTML = `<div class="td-item" data-action="edit" data-scene="${sceneId}">编辑场景</div><div class="td-item danger" data-action="delete" data-scene="${sceneId}">删除场景</div>`;
-      dd.style.left = Math.min(rect.left, window.innerWidth - 150) + 'px';
-      dd.style.top = (rect.bottom + 6) + 'px';
-      document.body.appendChild(dd);
-      setTimeout(() => {
-        const h = e => { if (!dd.contains(e.target)) { dd.remove(); document.removeEventListener('click', h); } };
-        document.addEventListener('click', h);
-      }, 50);
+      showTabDropdown(menuBtn, menuBtn.dataset.sceneId);
       return;
     }
     // Navigate
@@ -248,27 +237,42 @@ function setupEventDelegation() {
     }
   });
 
-  // Tab dropdown items (in body)
-  document.addEventListener('click', async e => {
-    const menu = e.target.closest('.td-item');
-    if (!menu) return;
-    e.stopPropagation();
-    const action = menu.dataset.action;
-    const sceneId = menu.dataset.scene;
-    menu.closest('.tab-dropdown')?.remove();
-    if (action === 'edit') openEditDialog(sceneId);
-    else if (action === 'delete') {
-      if (confirm('确定删除此场景？歌单也会被清空。')) {
-        const delScene = await SceneRepo.getById(sceneId);
-        await SceneRepo.remove(sceneId);
-        App.clearSceneCache();
-        const remaining = await SceneRepo.getByCategory(delScene.category);
-        if (remaining.length > 0) await App.navigateToScene(remaining[0].id);
-        else App.navigateTo('home');
-        App.toast('已删除');
+  // Tab dropdown — self-contained, handles its own clicks
+function showTabDropdown(anchor, sceneId) {
+  document.querySelectorAll('.tab-dropdown').forEach(d => d.remove());
+  const rect = anchor.getBoundingClientRect();
+  const dd = document.createElement('div'); dd.className = 'tab-dropdown';
+  dd.innerHTML = `<div class="td-item" data-action="edit" data-scene="${sceneId}">编辑场景</div><div class="td-item danger" data-action="delete" data-scene="${sceneId}">删除场景</div>`;
+  dd.style.left = Math.min(rect.left, window.innerWidth - 150) + 'px';
+  dd.style.top = (rect.bottom + 6) + 'px';
+  document.body.appendChild(dd);
+  // Click handlers on items
+  dd.querySelectorAll('.td-item').forEach(item => {
+    item.addEventListener('click', async e => {
+      e.stopPropagation();
+      const action = item.dataset.action;
+      const sid = item.dataset.scene;
+      dd.remove();
+      if (action === 'edit') openEditDialog(sid);
+      else if (action === 'delete') {
+        if (confirm('确定删除此场景？歌单也会被清空。')) {
+          const delScene = await SceneRepo.getById(sid);
+          await SceneRepo.remove(sid);
+          App.clearSceneCache();
+          const remaining = await SceneRepo.getByCategory(delScene.category);
+          if (remaining.length > 0) await App.navigateToScene(remaining[0].id);
+          else App.navigateTo('home');
+          App.toast('已删除');
+        }
       }
-    }
+    });
   });
+  // Close on outside click
+  setTimeout(() => {
+    const h = e => { if (!dd.contains(e.target) && e.target !== anchor) { dd.remove(); document.removeEventListener('click', h); } };
+    document.addEventListener('click', h);
+  }, 10);
+}
 
   // Playlist clicks
   document.getElementById('playlist-items').addEventListener('click', async e => {

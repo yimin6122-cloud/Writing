@@ -1,30 +1,38 @@
 /* ============================================================
    灵感音域 — 白噪音引擎
+   修复：AudioContext 在用户点击时同步创建/恢复
    ============================================================ */
 const NoiseEngine = {
   masterGain: null,
   masterVol: 0.6,
   noises: {},
 
-  async toggle(id) {
-    try {
-      // Force-resume AudioContext
-      if (!Player.audioCtx) await Player.ensureCtx();
-      if (Player.audioCtx.state === 'suspended') await Player.audioCtx.resume();
+  /** 确保 AudioContext 已激活 — 必须在用户手势中调用 */
+  ensureReady() {
+    if (!Player.audioCtx) {
+      Player.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      Player.analyser = Player.audioCtx.createAnalyser();
+      Player.analyser.fftSize = 256;
+      Player.analyser.connect(Player.audioCtx.destination);
+    }
+    if (Player.audioCtx.state === 'suspended') {
+      Player.audioCtx.resume(); // 不 await，同步触发即可
+    }
+    if (!this.masterGain) {
+      this.masterGain = Player.audioCtx.createGain();
+      this.masterGain.gain.value = this.masterVol;
+      this.masterGain.connect(Player.audioCtx.destination);
+    }
+  },
 
-      if (!this.masterGain) {
-        this.masterGain = Player.audioCtx.createGain();
-        this.masterGain.gain.value = this.masterVol;
-        this.masterGain.connect(Player.audioCtx.destination);
-      }
-
-      if (this.noises[id]?.playing) {
-        this.stop(id);
-      } else {
-        this.start(id);
-      }
-      App.renderNoise();
-    } catch (e) { console.error('Noise error:', e); App.toast('播放失败'); }
+  toggle(id) {
+    this.ensureReady();
+    if (this.noises[id]?.playing) {
+      this.stop(id);
+    } else {
+      this.start(id);
+    }
+    App.renderNoise();
   },
 
   start(id) {
@@ -54,18 +62,10 @@ const NoiseEngine = {
     if (this.masterGain) this.masterGain.gain.value = this.masterVol;
   },
 
-  async applyPreset(key) {
+  applyPreset(key) {
     const preset = NOISE_PRESETS[key]; if (!preset) return;
-    if (!Player.audioCtx) await Player.ensureCtx();
-    if (Player.audioCtx.state === 'suspended') await Player.audioCtx.resume();
-    if (!this.masterGain) {
-      this.masterGain = Player.audioCtx.createGain();
-      this.masterGain.gain.value = this.masterVol;
-      this.masterGain.connect(Player.audioCtx.destination);
-    }
-    // Stop all
+    this.ensureReady();
     Object.keys(this.noises).forEach(id => this.stop(id));
-    // Start preset
     for (const [id, vol] of Object.entries(preset.noises)) {
       const ctx = Player.audioCtx;
       const buf = createNoiseBuffer(id, ctx);
