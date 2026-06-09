@@ -194,6 +194,16 @@ function showDocList() {
   if (dl) dl.style.display = '';
 }
 
+// ---- OC Card ----
+function renderOC() {
+  const oc = generateOC();
+  document.getElementById('oc-name').textContent = oc.name;
+  document.getElementById('oc-age').textContent = oc.age;
+  document.getElementById('oc-identity').textContent = oc.identity;
+  document.getElementById('oc-personality').textContent = oc.personality;
+  document.getElementById('oc-background').textContent = oc.background;
+}
+
 // ---- Cover Visual ----
 let _coverInterval = null;
 function startCoverVisual() {

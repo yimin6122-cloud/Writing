@@ -35,13 +35,21 @@ const Player = {
   getAudioEl() {
     if (!this.audioEl) {
       this.audioEl = new Audio();
+      this.audioEl.preload = 'auto';
       this.audioEl.addEventListener('timeupdate', () => this.onTimeUpdate());
       this.audioEl.addEventListener('ended', () => this.onEnd());
       this.audioEl.addEventListener('loadedmetadata', () => this.onMeta());
-      this.audioEl.addEventListener('error', () => this.onError());
-      try {
-        this.audioCtx.createMediaElementSource(this.audioEl).connect(this.analyser);
-      } catch (e) { /* already connected */ }
+      this.audioEl.addEventListener('error', (e) => {
+        console.error('Audio error:', this.audioEl.error);
+        this.onError();
+      });
+      // Connect to analyser once
+      if (this.audioCtx && this.analyser) {
+        try {
+          const source = this.audioCtx.createMediaElementSource(this.audioEl);
+          source.connect(this.analyser);
+        } catch (e) { /* may already be connected */ }
+      }
     }
     return this.audioEl;
   },
@@ -54,8 +62,19 @@ const Player = {
 
     if (!track._cacheUrl) {
       App.toast('准备音频...');
-      const url = await this.resolveUrl(track);
-      if (!url) { App.toast('无法播放'); return; }
+      try {
+        await this.resolveUrl(track);
+      } catch (e) {
+        console.error('resolveUrl failed:', e);
+        App.toast('音频准备失败');
+        return;
+      }
+    }
+
+    if (!track._cacheUrl) {
+      console.error('No _cacheUrl after resolve:', track);
+      App.toast('无法播放');
+      return;
     }
 
     audio.src = track._cacheUrl;
@@ -67,6 +86,7 @@ const Player = {
       App.renderPlayer();
       App.renderPlaylist();
     } catch (e) {
+      console.error('Play failed:', e);
       this.isPlaying = false;
       App.renderPlayer();
       App.toast('播放失败');

@@ -130,13 +130,14 @@ const App = {
     document.querySelectorAll('.panel-mode').forEach(m => {
       m.classList.toggle('active', m.dataset.mode === mode);
     });
-    const panes = { playlist: 'pane-playlist', noise: 'pane-noise', writing: 'pane-writing' };
+    const panes = { playlist: 'pane-playlist', noise: 'pane-noise', oc: 'pane-oc', writing: 'pane-writing' };
     Object.entries(panes).forEach(([k, id]) => {
       const el = document.getElementById(id);
       if (el) el.style.display = k === mode ? 'flex' : 'none';
     });
     if (mode === 'playlist') renderPlaylist();
     else if (mode === 'noise') renderNoise();
+    else if (mode === 'oc') renderOC();
     else if (mode === 'writing') { if (!Writer.currentDocId) Writer.loadList(); }
   },
 
@@ -385,9 +386,17 @@ function showTabDropdown(anchor, sceneId) {
     App.showDialog('dlg-import', true);
   });
 
-  // Writing buttons
-  document.getElementById('btn-doc-new').addEventListener('click', () => Writer.reset());
-  document.getElementById('btn-doc-new2').addEventListener('click', () => Writer.reset());
+  // OC buttons
+  document.getElementById('btn-oc-generate').addEventListener('click', () => renderOC());
+  document.getElementById('btn-oc-copy').addEventListener('click', () => {
+    const fields = ['oc-name','oc-age','oc-identity','oc-personality','oc-background'];
+    const labels = ['姓名','年龄','身份','性格','背景'];
+    let text = '【OC人物设定卡】\n';
+    fields.forEach((id, i) => {
+      text += labels[i] + '：' + document.getElementById(id).textContent + '\n';
+    });
+    navigator.clipboard?.writeText(text).then(() => App.toast('已复制到剪贴板'));
+  });
   document.getElementById('btn-doc-list').addEventListener('click', () => Writer.loadList());
   document.getElementById('btn-doc-back').addEventListener('click', () => App.showWritingEditor());
   document.getElementById('btn-doc-float').addEventListener('click', () => Writer.openFloat());

@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="灵感音域 - 专为同人创作者打造的BGM氛围网站。9大世界观场景配乐、白噪音混音、创作写作工具。">
+<meta name="keywords" content="同人创作,BGM,氛围音乐,白噪音,写作,场景配乐,OC设定">
+<meta property="og:title" content="灵感音域 · 同人创作者的BGM氛围站">
+<meta property="og:description" content="用配乐激发同人创作灵感。9大世界观、45首氛围配乐、白噪音混音器、浮窗写作工具。">
+<meta property="og:type" content="website">
 <title>灵感音域 · 同人创作者的BGM氛围站</title>
 <link rel="stylesheet" href="css/styles.css">
 <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
@@ -87,6 +92,7 @@
         <div class="panel-modes">
           <div class="panel-mode active" data-mode="playlist">歌单</div>
           <div class="panel-mode" data-mode="noise">白噪音</div>
+          <div class="panel-mode" data-mode="oc">OC设定</div>
           <div class="panel-mode" data-mode="writing">写作</div>
         </div>
         <button class="ps-close" id="panel-close">×</button>
@@ -114,6 +120,21 @@
             </div>
             <div class="noise-presets" id="noise-presets"></div>
             <div class="noise-grid" id="noise-grid"></div>
+          </div>
+        </div>
+        <div id="pane-oc" style="display:none;flex:1;flex-direction:column">
+          <div class="oc-panel">
+            <div class="oc-card" id="oc-card">
+              <div class="oc-field"><span class="oc-label">姓名</span><span class="oc-value" id="oc-name">——</span></div>
+              <div class="oc-field"><span class="oc-label">年龄</span><span class="oc-value" id="oc-age">——</span></div>
+              <div class="oc-field"><span class="oc-label">身份</span><span class="oc-value" id="oc-identity">——</span></div>
+              <div class="oc-field"><span class="oc-label">性格</span><span class="oc-value" id="oc-personality">——</span></div>
+              <div class="oc-field"><span class="oc-label">背景</span><span class="oc-value" id="oc-background">——</span></div>
+            </div>
+            <div class="oc-btns">
+              <button class="btn primary" id="btn-oc-generate">随机生成</button>
+              <button class="btn" id="btn-oc-copy">复制设定</button>
+            </div>
           </div>
         </div>
         <div id="pane-writing" style="display:none;flex:1;flex-direction:column">
