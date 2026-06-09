@@ -70,7 +70,7 @@ const App = {
     const ib = document.getElementById('scene-image-bg');
     if (scene.bgImage) {
       ib.style.backgroundImage = `url(${scene.bgImage})`;
-      ib.style.opacity = '0.4';
+      ib.style.opacity = scene.bgOpacity != null ? scene.bgOpacity : 0.4;
     } else {
       ib.style.backgroundImage = '';
       ib.style.opacity = '0';
@@ -550,6 +550,9 @@ function setupDialogs() {
     document.getElementById('edit-scene-preview').style.backgroundImage = `url(${editPreviewUrl})`;
     document.getElementById('edit-scene-preview').textContent = '';
   });
+  document.getElementById('edit-scene-opacity').addEventListener('input', e => {
+    document.getElementById('edit-opacity-val').textContent = e.target.value + '%';
+  });
   document.getElementById('btn-confirm-edit').addEventListener('click', async () => {
     if (!editingSceneId) return;
     const edScene = await SceneRepo.getById(editingSceneId);
@@ -600,6 +603,9 @@ async function openEditDialog(sceneId) {
   window._editSceneId(sceneId);
   document.getElementById('edit-scene-name').value = scene.name || '';
   document.getElementById('edit-scene-desc').value = scene.desc || '';
+  const opacity = scene.bgOpacity != null ? Math.round(scene.bgOpacity * 100) : 40;
+  document.getElementById('edit-scene-opacity').value = opacity;
+  document.getElementById('edit-opacity-val').textContent = opacity + '%';
   if (scene.bgImage) {
     document.getElementById('edit-scene-preview').style.backgroundImage = `url(${scene.bgImage})`;
     document.getElementById('edit-scene-preview').textContent = '';
