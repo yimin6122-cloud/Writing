@@ -209,6 +209,41 @@ async function initApp() {
   console.log('InspMusic v2.0 ready');
 }
 
+// Tab dropdown — must be defined before setupEventDelegation
+function showTabDropdown(anchor, sceneId) {
+  document.querySelectorAll('.tab-dropdown').forEach(d => d.remove());
+  const rect = anchor.getBoundingClientRect();
+  const dd = document.createElement('div'); dd.className = 'tab-dropdown';
+  dd.innerHTML = `<div class="td-item" data-action="edit" data-scene="${sceneId}">编辑场景</div><div class="td-item danger" data-action="delete" data-scene="${sceneId}">删除场景</div>`;
+  dd.style.left = Math.min(rect.left, window.innerWidth - 150) + 'px';
+  dd.style.top = (rect.bottom + 6) + 'px';
+  document.body.appendChild(dd);
+  dd.querySelectorAll('.td-item').forEach(item => {
+    item.addEventListener('click', async e => {
+      e.stopPropagation();
+      const action = item.dataset.action;
+      const sid = item.dataset.scene;
+      dd.remove();
+      if (action === 'edit') openEditDialog(sid);
+      else if (action === 'delete') {
+        if (confirm('确定删除此场景？歌单也会被清空。')) {
+          const delScene = await SceneRepo.getById(sid);
+          await SceneRepo.remove(sid);
+          App.clearSceneCache();
+          const remaining = await SceneRepo.getByCategory(delScene.category);
+          if (remaining.length > 0) await App.navigateToScene(remaining[0].id);
+          else App.navigateTo('home');
+          App.toast('已删除');
+        }
+      }
+    });
+  });
+  setTimeout(() => {
+    const h = e => { if (!dd.contains(e.target) && e.target !== anchor) { dd.remove(); document.removeEventListener('click', h); } };
+    document.addEventListener('click', h);
+  }, 10);
+}
+
 // ---- Event Delegation ----
 function setupEventDelegation() {
   // Panel mode tabs
