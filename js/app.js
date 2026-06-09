@@ -227,7 +227,7 @@ function setupEventDelegation() {
     const menuBtn = e.target.closest('.tab-menu');
     if (menuBtn) {
       e.stopPropagation();
-      showTabDropdown(menuBtn, menuBtn.dataset.sceneId);
+      showTabDropdown(menuBtn, menuBtn.dataset.scene);
       return;
     }
     // Navigate
@@ -303,16 +303,16 @@ function showTabDropdown(anchor, sceneId) {
     }
   });
 
-  // Noise panel
-  document.getElementById('noise-grid').addEventListener('click', e => {
+  // Noise panel — delegate from pane-noise (parent not rewritten)
+  document.getElementById('pane-noise').addEventListener('click', e => {
     const toggle = e.target.closest('.ni-toggle');
     if (toggle) { e.preventDefault(); e.stopPropagation(); NoiseEngine.toggle(toggle.dataset.noise); }
   });
-  document.getElementById('noise-grid').addEventListener('input', e => {
+  document.getElementById('pane-noise').addEventListener('input', e => {
     const slider = e.target.closest('.ni-vol');
     if (slider) NoiseEngine.setVol(slider.dataset.noise, slider.value / 100);
   });
-  document.getElementById('noise-presets').addEventListener('click', e => {
+  document.getElementById('pane-noise').addEventListener('click', e => {
     const btn = e.target.closest('.noise-preset');
     if (btn) NoiseEngine.applyPreset(btn.dataset.preset);
   });

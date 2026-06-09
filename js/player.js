@@ -184,9 +184,24 @@ const Player = {
 };
 
 // ---- Music Generator ----
+// Fallback: 60s silence WAV
+function createSilenceWav(secs) {
+  const sr = 44100, len = sr * secs;
+  const buf = new ArrayBuffer(44 + len * 2);
+  const v = new DataView(buf);
+  const ws = (v, o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  ws(v, 0, 'RIFF'); v.setUint32(4, 36 + len * 2, true); ws(v, 8, 'WAVE'); ws(v, 12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true);
+  v.setUint16(34, 16, true); ws(v, 36, 'data'); v.setUint32(40, len * 2, true);
+  return new Blob([buf], { type: 'audio/wav' });
+}
+
 async function generateMusic(worldKey, trackIdx) {
   const cat = WORLD_TREE[worldKey];
+  if (!cat || !cat.tracks) { console.error('No world:', worldKey); return createSilenceWav(60); }
   const track = cat.tracks[trackIdx];
+  if (!track) { console.error('No track:', worldKey, trackIdx); return createSilenceWav(60); }
   const dur = track.dur, sr = 44100;
   const ctx = new OfflineAudioContext(2, sr * dur, sr);
   const p = MUSIC_PROFILES[worldKey] || MUSIC_PROFILES.fantasy;
