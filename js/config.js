@@ -2,32 +2,38 @@
    灵感音域 — 数据配置 & 设计常量
    ============================================================ */
 
-// ---- 世界背景渐变 ----
-const WORLD_GRADIENTS = {
-  ancient:    'radial-gradient(ellipse at 30% 60%,#3d1e0a,transparent 55%),radial-gradient(ellipse at 70% 30%,#2d1508,transparent 50%),linear-gradient(180deg,#100a05,#1a0f08 50%,#100a05)',
-  fantasy:    'radial-gradient(ellipse at 30% 50%,#2d1b4e,transparent 60%),radial-gradient(ellipse at 70% 20%,#1a1050,transparent 50%),linear-gradient(180deg,#0a0818,#100d28 50%,#0a0818)',
-  urban:      'radial-gradient(ellipse at 35% 55%,#3d1040,transparent 55%),radial-gradient(ellipse at 65% 45%,#0d2840,transparent 50%),linear-gradient(180deg,#0a0a14,#101018 50%,#0a0a14)',
-  republican: 'radial-gradient(ellipse at 30% 50%,#4d2e0a,transparent 55%),radial-gradient(ellipse at 70% 40%,#3d2006,transparent 50%),linear-gradient(180deg,#120c06,#1a120a 50%,#120c06)',
-  cyberpunk:  'radial-gradient(ellipse at 30% 50%,#2d0050,transparent 55%),radial-gradient(ellipse at 70% 30%,#0a3050,transparent 50%),linear-gradient(180deg,#050210,#0a0518 50%,#050210)',
-  apocalypse: 'radial-gradient(ellipse at 30% 70%,#5d1808,transparent 55%),radial-gradient(ellipse at 70% 50%,#4d1005,transparent 50%),linear-gradient(180deg,#0f0804,#1a0c06 50%,#0f0804)',
-  crime:      'radial-gradient(ellipse at 25% 55%,#0a1a2d,transparent 55%),radial-gradient(ellipse at 75% 45%,#0d1525,transparent 50%),linear-gradient(180deg,#050810,#080d18 50%,#050810)',
-  steampunk:  'radial-gradient(ellipse at 35% 50%,#3d2a10,transparent 55%),radial-gradient(ellipse at 65% 40%,#2d1d08,transparent 50%),linear-gradient(180deg,#0f0a04,#1a1208 50%,#0f0a04)',
-  space:      'radial-gradient(ellipse at 25% 40%,#000a30,transparent 55%),radial-gradient(ellipse at 75% 60%,#001040,transparent 50%),linear-gradient(180deg,#000208,#020810 50%,#000208)',
-};
-
 // ---- 9 大世界（每世界5首曲目，附带Pixabay搜索关键词）----
 const WORLD_TREE = {
   ancient: {
-    name: '古风', desc: '宫廷 · 江湖 · 仙侠',
+    name: '古风', desc: '权谋 · 宫廷 · 仙侠',
     accent: '#f59e0b', accentGlow: 'rgba(245,158,11,0.35)',
     palette: ['#fbbf24','#f59e0b','#d97706','#fcd34d','#fde68a'],
     bgClass: 'ancient',
+    virtual: true, // parent only, not a real scene
+  },
+  ancient_scheming: {
+    name: '权谋', desc: '宫廷 · 权术 · 博弈',
+    accent: '#dc2626', accentGlow: 'rgba(220,38,38,0.35)',
+    palette: ['#dc2626','#991b1b','#fbbf24','#f59e0b','#d4a574'],
+    bgClass: 'ancient',
+    category: 'ancient',
+    defaultBg: 'images/权谋.jpg',
+    bgOpacity: 0.3,
     tracks: [
-      { name:'宫墙之影', genre:'编钟与古琴', dur:235, search:'chinese traditional guzheng palace' },
-      { name:'江湖夜雨', genre:'笛子协奏', dur:200, search:'chinese flute xiao wandering' },
-      { name:'云海仙踪', genre:'空灵箫声', dur:240, search:'chinese ethereal xianxia ambient' },
-      { name:'水墨江南', genre:'古筝与笛', dur:195, search:'chinese guzheng peaceful garden' },
-      { name:'征战行', genre:'战鼓号角', dur:220, search:'epic chinese war drums battle' },
+      { name:'权谋1', genre:'', dur:0, audioUrl:'music/权谋1.m4a' },
+      { name:'权谋2', genre:'', dur:0, audioUrl:'music/权谋2.m4a' },
+    ],
+  },
+  ancient_xianxia: {
+    name: '仙侠', desc: '修仙 · 法宝 · 飞升',
+    accent: '#a78bfa', accentGlow: 'rgba(167,139,250,0.35)',
+    palette: ['#a78bfa','#c4a0ff','#8b5cf6','#e9d5ff','#d8b4fe'],
+    bgClass: 'fantasy',
+    category: 'ancient',
+    defaultBg: 'images/古风.jpg',
+    tracks: [
+      { name:'仙侠1', genre:'', dur:0, audioUrl:'music/古风1.m4a' },
+      { name:'仙侠2', genre:'', dur:0, audioUrl:'music/仙侠2.m4a' },
     ],
   },
   fantasy: {
@@ -35,12 +41,9 @@ const WORLD_TREE = {
     accent: '#b98eff', accentGlow: 'rgba(185,142,255,0.35)',
     palette: ['#c4a0ff','#a78bfa','#8b5cf6','#d8b4fe','#e9d5ff'],
     bgClass: 'fantasy',
+    defaultBg: 'images/西幻.jpg',
     tracks: [
-      { name:'咒文与星图', genre:'神秘管弦', dur:215, search:'fantasy magical orchestral mysterious' },
-      { name:'王座之间', genre:'大提琴独奏', dur:240, search:'medieval cello throne royal' },
-      { name:'林间晨光', genre:'凯尔特竖琴', dur:198, search:'celtic harp forest elven' },
-      { name:'深渊回响', genre:'低音弦乐', dur:225, search:'dark dungeon deep strings' },
-      { name:'圣光颂歌', genre:'合唱与管风琴', dur:250, search:'epic choir organ cathedral sacred' },
+      { name:'西幻1', genre:'史诗管弦', dur:0, audioUrl:'music/西幻1.m4a' },
     ],
   },
   urban: {
@@ -48,12 +51,13 @@ const WORLD_TREE = {
     accent: '#f472b6', accentGlow: 'rgba(244,114,182,0.35)',
     palette: ['#f472b6','#fb7185','#a78bfa','#f9a8d4','#e879f9'],
     bgClass: 'urban',
+    defaultBg: 'images/都市.jpg',
     tracks: [
-      { name:'晨间通勤', genre:'轻电子', dur:185, search:'lofi morning commute chill' },
-      { name:'放学铃响', genre:'尤克里里', dur:175, search:'ukulele cheerful school youth' },
-      { name:'午后的猫', genre:'温暖吉他', dur:200, search:'acoustic guitar warm cozy afternoon' },
-      { name:'霓虹暗涌', genre:'合成器流行', dur:195, search:'synthwave neon night city pop' },
-      { name:'白色走廊', genre:'安静钢琴', dur:210, search:'sad piano hospital quiet melancholy' },
+      { name:'都市1', genre:'', dur:0, audioUrl:'music/都市1.m4a' },
+      { name:'都市2', genre:'', dur:0, audioUrl:'music/都市2.m4a' },
+      { name:'都市3', genre:'', dur:0, audioUrl:'music/都市3.m4a' },
+      { name:'都市4', genre:'', dur:0, audioUrl:'music/都市4.m4a' },
+      { name:'都市5', genre:'', dur:0, audioUrl:'music/都市5.m4a' },
     ],
   },
   republican: {
@@ -62,11 +66,7 @@ const WORLD_TREE = {
     palette: ['#d4a574','#c4956a','#e8c89a','#b8845c','#f0d8b0'],
     bgClass: 'republican',
     tracks: [
-      { name:'暗号', genre:'爵士钢琴', dur:205, search:'jazz piano spy noir suspense' },
-      { name:'夜上海', genre:'爵士大乐队', dur:220, search:'vintage jazz big band shanghai' },
-      { name:'公馆深处', genre:'钢琴与弦乐', dur:230, search:'classical piano strings mansion nostalgic' },
-      { name:'战地晨曦', genre:'悲悯弦乐', dur:215, search:'sad strings war field hospital' },
-      { name:'乱世浮萍', genre:'二胡与提琴', dur:225, search:'erhu violin sorrowful wartime' },
+      { name:'民国1', genre:'', dur:0, audioUrl:'music/民国1.m4a' },
     ],
   },
   cyberpunk: {
@@ -74,12 +74,13 @@ const WORLD_TREE = {
     accent: '#e040fb', accentGlow: 'rgba(224,64,251,0.35)',
     palette: ['#e040fb','#7c4dff','#00e5ff','#d500f9','#448aff'],
     bgClass: 'cyberpunk',
+    defaultBg: 'images/赛博朋克.jpg',
     tracks: [
-      { name:'霓虹雨', genre:'合成波', dur:210, search:'synthwave neon rain dark' },
-      { name:'金属与神经', genre:'工业氛围', dur:205, search:'industrial cyberpunk mechanical ambient' },
-      { name:'总部大厦', genre:'极简电子', dur:220, search:'minimal electronic corporate dystopian' },
-      { name:'地下交易', genre:'黑暗电子', dur:200, search:'dark electronic underground black market' },
-      { name:'入侵', genre:'脉冲合成器', dur:195, search:'glitch electronic hacker cyber attack' },
+      { name:'赛博朋克1', genre:'', dur:0, audioUrl:'music/赛博朋克1.m4a' },
+      { name:'赛博朋克2', genre:'', dur:0, audioUrl:'music/赛博朋克2.m4a' },
+      { name:'赛博朋克3', genre:'', dur:0, audioUrl:'music/赛博朋克3.m4a' },
+      { name:'赛博朋克4', genre:'', dur:0, audioUrl:'music/赛博朋克4.m4a' },
+      { name:'赛博朋克5', genre:'', dur:0, audioUrl:'music/赛博朋克5.m4a' },
     ],
   },
   apocalypse: {
@@ -87,25 +88,21 @@ const WORLD_TREE = {
     accent: '#ef4444', accentGlow: 'rgba(239,68,68,0.35)',
     palette: ['#ef4444','#f97316','#fbbf24','#dc2626','#fdba74'],
     bgClass: 'apocalypse',
-    tracks: [
-      { name:'寂静之城', genre:'环境嗡鸣', dur:230, search:'ambient drone desolate ruined city' },
-      { name:'避难所', genre:'温暖吉他', dur:195, search:'acoustic hopeful shelter survival' },
-      { name:'无尽公路', genre:'工业摇滚', dur:210, search:'industrial rock road chase wasteland' },
-      { name:'拾荒者', genre:'民谣吉他', dur:200, search:'folk guitar scavenger desolate' },
-      { name:'尸潮', genre:'恐怖管弦', dur:195, search:'horror orchestral zombie horde intense' },
-    ],
+    defaultBg: 'images/末世废土.jpg',
+    tracks: [],
   },
   crime: {
     name: '悬疑刑侦', desc: '推理 · 追凶 · 真相',
     accent: '#78909c', accentGlow: 'rgba(120,144,156,0.35)',
     palette: ['#78909c','#90a4ae','#546e7a','#b0bec5','#607d8b'],
     bgClass: 'crime',
+    defaultBg: 'images/悬疑.jpg',
     tracks: [
-      { name:'封锁线', genre:'悬疑合成器', dur:205, search:'suspense synth crime scene investigation' },
-      { name:'解剖台', genre:'环境嗡鸣', dur:215, search:'dark ambient autopsy morgue cold' },
-      { name:'审讯', genre:'紧张打击乐', dur:195, search:'tense percussion interrogation thriller' },
-      { name:'尘封卷宗', genre:'安静氛围', dur:220, search:'ambient archive old files quiet' },
-      { name:'老宅', genre:'恐怖管弦', dur:210, search:'horror strings haunted mansion creepy' },
+      { name:'悬疑刑侦1', genre:'', dur:0, audioUrl:'music/悬疑刑侦1.m4a' },
+      { name:'悬疑刑侦2', genre:'', dur:0, audioUrl:'music/悬疑刑侦2.m4a' },
+      { name:'悬疑刑侦3', genre:'', dur:0, audioUrl:'music/悬疑刑侦3.m4a' },
+      { name:'悬疑刑侦4', genre:'', dur:0, audioUrl:'music/悬疑刑侦4.m4a' },
+      { name:'悬疑刑侦5', genre:'', dur:0, audioUrl:'music/悬疑刑侦5.m4a' },
     ],
   },
   steampunk: {
@@ -113,25 +110,29 @@ const WORLD_TREE = {
     accent: '#cd853f', accentGlow: 'rgba(205,133,63,0.35)',
     palette: ['#cd853f','#daa520','#b8860b','#d2b48c','#f4a460'],
     bgClass: 'steampunk',
-    tracks: [
-      { name:'云端之上', genre:'管弦与齿轮', dur:225, search:'orchestral steampunk airship adventure' },
-      { name:'齿轮交响曲', genre:'打击乐与铜管', dur:210, search:'percussion brass mechanical workshop' },
-      { name:'钟楼之巅', genre:'管风琴与钟声', dur:230, search:'organ bells clock tower victorian' },
-      { name:'齿轮之舞', genre:'工业打击乐', dur:205, search:'industrial percussion gears factory' },
-      { name:'启航', genre:'管弦史诗', dur:215, search:'epic orchestral departure sky port' },
-    ],
+    defaultBg: 'images/蒸汽朋克.jpg',
+    tracks: [],
   },
   space: {
     name: '太空科幻', desc: '星舰 · 未知 · 宇宙',
     accent: '#38bdf8', accentGlow: 'rgba(56,189,248,0.35)',
     palette: ['#38bdf8','#22d3ee','#818cf8','#67e9f9','#7dd3fc'],
     bgClass: 'space',
+    defaultBg: 'images/太空科幻.jpg',
+    tracks: [],
+  },
+  campus: {
+    name: '青春校园', desc: '教室 · 操场 · 青春',
+    accent: '#f9a8d4', accentGlow: 'rgba(249,168,212,0.35)',
+    palette: ['#f9a8d4','#fda4af','#c084fc','#fbcfe8','#e9d5ff'],
+    bgClass: 'campus',
+    defaultBg: 'images/青春校园.jpg',
     tracks: [
-      { name:'星舰日常', genre:'太空合成器', dur:230, search:'space ambient starship sci-fi calm' },
-      { name:'轨道站', genre:'氛围合成器', dur:240, search:'ambient space station orbital lonely' },
-      { name:'异星黎明', genre:'世界音乐融合', dur:220, search:'ethnic fusion alien colony dawn' },
-      { name:'星港蓝调', genre:'爵士电子', dur:195, search:'jazz electronic space bar lounge' },
-      { name:'跃迁', genre:'前卫电子', dur:210, search:'experimental electronic wormhole warp' },
+      { name:'校园1', genre:'', dur:0, audioUrl:'music/校园1.m4a' },
+      { name:'校园2', genre:'', dur:0, audioUrl:'music/校园2.m4a' },
+      { name:'校园3', genre:'', dur:0, audioUrl:'music/校园3.m4a' },
+      { name:'校园4', genre:'', dur:0, audioUrl:'music/校园4.m4a' },
+      { name:'校园5', genre:'', dur:0, audioUrl:'music/校园5.m4a' },
     ],
   },
 };
@@ -177,49 +178,8 @@ const MUSIC_PROFILES = {
   crime:      { scale:[174.61,196.00,220.00,261.63,293.66,349.23,392.00,440.00],   chords:[[174.61,220.00,261.63],[196.00,261.63,293.66],[220.00,261.63,349.23],[164.81,220.00,261.63]], wave:'sine',    bpm:65 },
   steampunk:  { scale:[146.83,174.61,220.00,261.63,293.66,349.23,440.00,523.25],   chords:[[146.83,174.61,220.00],[174.61,220.00,261.63],[220.00,261.63,293.66],[164.81,220.00,261.63]], wave:'triangle',bpm:78 },
   space:      { scale:[110.00,138.59,164.81,207.65,277.18,329.63,415.30,554.37],   chords:[[110.00,164.81,207.65],[138.59,207.65,277.18],[164.81,207.65,329.63],[130.81,164.81,277.18]], wave:'sawtooth',bpm:50 },
+  campus:     { scale:[261.63,293.66,329.63,349.23,392.00,440.00,523.25,587.33],   chords:[[261.63,329.63,392.00],[293.66,349.23,440.00],[329.63,392.00,523.25],[261.63,293.66,392.00]], wave:'sine',bpm:90 },
 };
-
-// ---- OC设定卡数据 ----
-const OC_DATA = {
-  names: ['林夜','苏念安','顾北辰','沈清欢','陆离','白染','萧然','江月','慕星辰','叶知秋','云无月','墨言','裴霜','柳轻尘'],
-  ages: ['16岁','17岁','18岁','19岁','22岁','24岁','27岁','31岁','外表少年实则百年','未知'],
-  identities: [
-    '暗杀家族最后的传人，梦想成为花店老板',
-    '能看见他人命运线的异能者，但看不到自己的',
-    '被退婚的天才剑修，走一条从未有人走过的道',
-    'AI仿生人，拥有完整人类情感，出厂设置是"武器"',
-    '表面大学生，实际是异世界守护者',
-    '图书馆管理员，守护会吞噬记忆的禁书区',
-    '星际快递员，每次送货卷入不同文明冲突',
-    '流浪乐师，琴声能打开通往不同时空的门',
-  ],
-  personalities: [
-    '外表高冷内心柔软，笑容只留给特定的人',
-    '嘴硬心软，嘴上说麻烦手上帮所有人',
-    '天然呆，偶尔说出让人细思极恐的话',
-    '温柔到近乎懦弱，重要时刻爆发出惊人勇气',
-    '理性至上，唯一算不准的是自己的感情',
-    '表面阳光开朗，深夜独自一人露出疲惫神情',
-  ],
-  backgrounds: [
-    '出身被诅咒的家族，每代长子成年那天失去最重要的人。为打破诅咒踏上旅途。',
-    '在孤儿院长大，唯一线索是襁褓中的泛黄照片——照片上是未见的城市。',
-    '曾经最强的存在，一场战争后失去所有能力和记忆，现在只是普通人。',
-    '从小能听到别人听不到的声音——世界本身在说话。所有人都说ta疯了，直到灾难降临。',
-  ],
-};
-
-function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-
-function generateOC() {
-  return {
-    name: pick(OC_DATA.names),
-    age: pick(OC_DATA.ages),
-    identity: pick(OC_DATA.identities),
-    personality: pick(OC_DATA.personalities),
-    background: pick(OC_DATA.backgrounds),
-  };
-}
 
 // ---- 灵感提示词数据 ----
 const INSPIRE_PROMPTS = {

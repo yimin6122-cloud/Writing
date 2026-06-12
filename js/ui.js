@@ -23,10 +23,6 @@ async function renderHome() {
       <div class="card-label">+ 创建场景</div>
       <div class="card-desc">从你的图库导入</div>
     </div>
-    <div class="glass-card" data-nav="forum">
-      <div class="card-label">交流论坛</div>
-      <div class="card-desc">同好讨论与分享</div>
-    </div>
   `;
 
   // User scenes
@@ -52,7 +48,6 @@ async function renderHome() {
     ug.innerHTML = '';
   }
 
-  // Event delegation
   grid.addEventListener('click', async e => {
     if (e.target.closest('.card-delete')) return;
     const card = e.target.closest('.glass-card'); if (!card) return;
@@ -60,7 +55,6 @@ async function renderHome() {
     if (nav === 'category') await App.navigateToCategory(card.dataset.cat);
     else if (nav === 'scene') await App.navigateToScene(card.dataset.scene);
     else if (nav === 'create-scene') App.showCreateDialog();
-    else if (nav === 'forum') App.navigateTo('forum');
   });
   ug.addEventListener('click', async e => {
     if (e.target.closest('.card-delete')) return;
@@ -70,7 +64,6 @@ async function renderHome() {
     else if (nav === 'create-scene') App.showCreateDialog();
   });
 
-  // Delete buttons
   document.querySelectorAll('.card-delete').forEach(b => {
     b.addEventListener('click', async e => {
       e.stopPropagation();
@@ -99,7 +92,12 @@ async function renderSceneTabs(catKey, activeSceneId) {
 // ---- Player UI ----
 function renderPlayer() {
   const btn = document.getElementById('btn-play');
-  if (btn) btn.textContent = Player.isPlaying ? '⏸' : '▶';
+  if (btn) {
+    const playIcon = btn.querySelector('.icon-play');
+    const pauseIcon = btn.querySelector('.icon-pause');
+    if (playIcon) playIcon.style.display = Player.isPlaying ? 'none' : '';
+    if (pauseIcon) pauseIcon.style.display = Player.isPlaying ? '' : 'none';
+  }
   const title = document.getElementById('np-title');
   const artist = document.getElementById('np-artist');
   if (Player.currentIdx >= 0 && Player.playlist[Player.currentIdx]) {
@@ -110,10 +108,14 @@ function renderPlayer() {
     if (title) title.textContent = '选择一首曲目';
     if (artist) artist.textContent = '--';
   }
-  // Loop/Shuffle indicators
   const loopBtn = document.getElementById('btn-loop');
   if (loopBtn) {
-    loopBtn.textContent = Player.loopMode === 2 ? '🔂' : '🔁';
+    const off = loopBtn.querySelector('.icon-loop-off');
+    const list = loopBtn.querySelector('.icon-loop-list');
+    const single = loopBtn.querySelector('.icon-loop-single');
+    if (off) off.style.display = Player.loopMode === 0 ? '' : 'none';
+    if (list) list.style.display = Player.loopMode === 1 ? '' : 'none';
+    if (single) single.style.display = Player.loopMode === 2 ? '' : 'none';
     loopBtn.style.opacity = Player.loopMode === 0 ? '0.5' : '1';
     loopBtn.style.color = Player.loopMode === 0 ? '' : 'var(--accent)';
   }
@@ -148,7 +150,6 @@ async function renderPlaylist() {
       <span class="pl-num">${String(i + 1).padStart(2, '0')}</span>
       <div class="pl-info">
         <div class="pl-name">${t.name}</div>
-        <div class="pl-source">${t.genre}</div>
       </div>
       <div class="pl-actions"><span class="pl-act danger" data-action="remove" data-track="${t.id}">x</span></div>
       <span style="font-size:var(--text-caption);color:var(--text-muted);min-width:32px;text-align:right">${fmtTime(t.dur)}</span>
@@ -170,7 +171,6 @@ function renderNoise() {
     </div>`;
   }).join('');
 
-  // Presets
   const presets = document.getElementById('noise-presets');
   if (presets) {
     presets.innerHTML = Object.entries(NOISE_PRESETS).map(([k, p]) =>
@@ -180,7 +180,6 @@ function renderNoise() {
 }
 
 // ---- Writing Status ----
-// No save status shown — auto-save is silent
 function showWritingEditor() {
   const wp = document.getElementById('writing-panel');
   const dl = document.getElementById('docs-list-panel');
@@ -194,48 +193,43 @@ function showDocList() {
   if (dl) dl.style.display = '';
 }
 
-// ---- OC Card ----
-function renderOC() {
-  const oc = generateOC();
-  document.getElementById('oc-name').textContent = oc.name;
-  document.getElementById('oc-age').textContent = oc.age;
-  document.getElementById('oc-identity').textContent = oc.identity;
-  document.getElementById('oc-personality').textContent = oc.personality;
-  document.getElementById('oc-background').textContent = oc.background;
+// ---- Character Cards ----
+async function renderCharCards() {
+  const container = document.getElementById('oc-cards');
+  if (!container) return;
+  const sceneId = App.state.currentSceneId;
+  if (!sceneId) return;
+  const chars = await CharRepo.getAll(sceneId);
+  if (chars.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px;font-size:var(--text-body-sm)">还没有角色卡</div>';
+    return;
+  }
+  container.innerHTML = chars.map(ch => `
+    <div class="char-card" data-char-id="${ch.id}">
+      <div class="char-card-header">
+        <span class="char-card-name">${ch.name || '未命名'}</span>
+        <span class="char-card-delete" style="font-size:12px;color:var(--text-muted);cursor:pointer" data-char-id="${ch.id}">×</span>
+      </div>
+      ${ch.age ? '<div class="char-card-meta">年龄: ' + ch.age + '</div>' : ''}
+      ${ch.identity ? '<div class="char-card-meta">身份: ' + ch.identity + '</div>' : ''}
+      ${ch.personality ? '<div class="char-card-meta">性格: ' + ch.personality + '</div>' : ''}
+      ${ch.background ? '<div class="char-card-meta">背景: ' + ch.background.slice(0, 60) + (ch.background.length > 60 ? '...' : '') + '</div>' : ''}
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.char-card-delete').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (confirm('删除此角色卡？')) {
+        await CharRepo.remove(btn.dataset.charId);
+        await renderCharCards();
+        App.toast('已删除');
+      }
+    });
+  });
 }
 
 // ---- Cover Visual ----
-let _coverInterval = null;
 function startCoverVisual() {
-  if (_coverInterval) return;
-  _coverInterval = setInterval(() => {
-    const cv = document.getElementById('np-cover-canvas');
-    if (!cv || !Player.analyser) return;
-    const ctx = cv.getContext('2d'), w = cv.width, h = cv.height;
-    const scene = App.getCurrentSceneCached();
-    const pal = scene?.palette || ['#c4a0ff'];
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#111'; ctx.fillRect(0, 0, w, h);
-    if (Player.isPlaying) {
-      const fd = new Uint8Array(Player.analyser.frequencyBinCount);
-      Player.analyser.getByteFrequencyData(fd);
-      for (let r = 0; r < 2; r++) {
-        ctx.beginPath();
-        for (let i = 0; i <= 24; i++) {
-          const a = (i / 24) * Math.PI * 2;
-          const fi = Math.floor(i * fd.length / 24) % fd.length;
-          const amp = fd[fi] / 255;
-          const r2 = (15 + r * 20) + amp * 12;
-          ctx.lineTo(w / 2 + Math.cos(a) * r2, h / 2 + Math.sin(a) * r2);
-        }
-        ctx.closePath(); ctx.strokeStyle = pal[r % pal.length];
-        ctx.globalAlpha = 0.6 - r * 0.2; ctx.lineWidth = 1; ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-    } else {
-      ctx.beginPath(); ctx.arc(w / 2, h / 2, 14 + Math.sin(Date.now() / 2000) * 4, 0, Math.PI * 2);
-      ctx.strokeStyle = scene?.accent || '#b98eff'; ctx.globalAlpha = 0.3; ctx.lineWidth = 1.5; ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
-  }, 150);
+  // Static vinyl record — no animation
 }

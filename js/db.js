@@ -3,47 +3,101 @@
    依赖: Dexie.js (CDN)
    ============================================================ */
 const DB = new Dexie('InspMusic');
-DB.version(3).stores({
+DB.version(4).stores({
   scenes:          'id,type,category,name,createdAt',
   playlistEntries: '[sceneId+order],sceneId,trackId',
   tracks:          'id,type',
   settings:        'key',
   docs:            'id,sceneId,updatedAt',
+  chars:           'id,sceneId,order',
+});
+
+// v5-v7: safety cleanup for stale upgrades
+const _storesV7 = {
+  scenes:          'id,type,category,name,createdAt',
+  playlistEntries: '[sceneId+order],sceneId,trackId',
+  tracks:          'id,type',
+  settings:        'key',
+  docs:            'id,sceneId,updatedAt',
+  chars:           'id,sceneId,order',
+  playlists:       '',  // leftover from failed v5/v6 upgrade
+};
+DB.version(5).stores(_storesV7);
+DB.version(6).stores(_storesV7);
+DB.version(7).stores(_storesV7).upgrade(async tx => {
+  await tx.table('scenes').clear();
+  await tx.table('playlistEntries').clear();
+  await tx.table('tracks').clear();
+  await tx.table('settings').clear();
+  await tx.table('docs').clear();
+  await tx.table('chars').clear();
 });
 
 // ---- Scene CRUD ----
 const SceneRepo = {
   async initSystemScenes() {
+    console.log('initSystemScenes: starting...');
+    try {
     const existing = await DB.scenes.where({ type: 'system' }).toArray();
     const existingIds = new Set(existing.map(s => s.id));
     const scenes = [], entries = [], tracks = [];
 
     for (const [ck, cat] of Object.entries(WORLD_TREE)) {
       const sid = ck;
+      const parentCategory = cat.category || ck;
+
+      // Skip virtual parent entries — they group sub-scenes only
+      if (cat.virtual) {
+        (cat.tracks || []).forEach((t, i) => {
+          const tid = `sys_${ck}_${i}`;
+          entries.push({ sceneId: sid, trackId: tid, order: i });
+          tracks.push({ id: tid, type: t.audioUrl ? 'external_url' : 'system_generated', name: t.name, genre: t.genre, duration: t.dur, worldKey: ck, subKey: null, trackIdx: i, audioUrl: t.audioUrl || null });
+        });
+        continue;
+      }
+
       if (!existingIds.has(sid)) {
         scenes.push({
-          id: sid, type: 'system', category: ck,
-          name: cat.name, desc: cat.desc, bgImage: null,
+          id: sid, type: 'system', category: parentCategory,
+          name: cat.name, desc: cat.desc,
+          bgImage: cat.defaultBg || null,
+          bgOpacity: cat.defaultBg ? (cat.bgOpacity != null ? cat.bgOpacity : 0.4) : null,
           accent: cat.accent, accentGlow: cat.accentGlow,
           palette: cat.palette, bgClass: cat.bgClass,
           createdAt: new Date().toISOString(),
+        });
+      } else {
+        // Update existing scene with any config changes
+        await DB.scenes.update(sid, {
+          name: cat.name, desc: cat.desc,
+          bgImage: cat.defaultBg || null,
+          bgOpacity: cat.defaultBg ? (cat.bgOpacity != null ? cat.bgOpacity : 0.4) : null,
+          accent: cat.accent, accentGlow: cat.accentGlow,
+          palette: cat.palette, bgClass: cat.bgClass,
         });
       }
       (cat.tracks || []).forEach((t, i) => {
         const tid = `sys_${ck}_${i}`;
         entries.push({ sceneId: sid, trackId: tid, order: i });
-        tracks.push({ id: tid, type: 'system_generated', name: t.name, genre: t.genre, duration: t.dur, worldKey: ck, subKey: null, trackIdx: i });
+        tracks.push({ id: tid, type: t.audioUrl ? 'external_url' : 'system_generated', name: t.name, genre: t.genre, duration: t.dur, worldKey: ck, subKey: null, trackIdx: i, audioUrl: t.audioUrl || null });
       });
     }
 
-    // Clean up old sub-world scenes from v3
-    await DB.scenes.where('id').startsWith('ancient/').or('id').startsWith('fantasy/').or('id').startsWith('urban/').or('id').startsWith('republican/').or('id').startsWith('cyberpunk/').or('id').startsWith('apocalypse/').or('id').startsWith('crime/').or('id').startsWith('steampunk/').or('id').startsWith('space/').delete();
+    // Clean up stale scenes (ignore errors on fresh DB)
+    try { await DB.scenes.where('id').startsWith('ancient/').delete(); } catch(e) {}
+    try { await DB.scenes.delete('scheming'); } catch(e) {}
+    try { await DB.scenes.delete('ancient'); } catch(e) {}
 
     if (scenes.length > 0) await DB.scenes.bulkPut(scenes);
     if (tracks.length > 0) await DB.tracks.bulkPut(tracks);
+    // Clear old system entries and rebuild
+    await DB.playlistEntries.where('trackId').startsWith('sys_').delete();
     for (const e of entries) {
-      const ex = await DB.playlistEntries.get({ sceneId: e.sceneId, trackId: e.trackId });
-      if (!ex) await DB.playlistEntries.put(e);
+      await DB.playlistEntries.put(e);
+    }
+    console.log('initSystemScenes: done, scenes=' + scenes.length + ', tracks=' + tracks.length + ', entries=' + entries.length);
+    } catch(e) {
+      console.error('initSystemScenes failed:', e);
     }
   },
 
@@ -177,6 +231,29 @@ const DocsRepo = {
     }
   },
   async remove(id) { await DB.docs.delete(id); },
+};
+
+// ---- Character Cards ----
+const CharRepo = {
+  async getAll(sceneId) {
+    try { return await DB.chars.where({ sceneId }).sortBy('order'); }
+    catch(e) { console.error('CharRepo.getAll:', e); return []; }
+  },
+  async add(sceneId, data) {
+    try {
+      const all = await this.getAll(sceneId);
+      const order = all.length;
+      const id = 'char_' + Date.now();
+      await DB.chars.put({ id, sceneId, order, ...data, name: data?.name || '', age: data?.age || '', identity: data?.identity || '', personality: data?.personality || '', background: data?.background || '' });
+      return id;
+    } catch(e) { console.error('CharRepo.add:', e); return null; }
+  },
+  async update(id, data) {
+    try { await DB.chars.update(id, data); } catch(e) { console.error('CharRepo.update:', e); }
+  },
+  async remove(id) {
+    try { await DB.chars.delete(id); } catch(e) { console.error('CharRepo.remove:', e); }
+  },
 };
 
 // ---- Settings ----

@@ -42,6 +42,12 @@ const App = {
   async navigateToCategory(catKey) {
     const cat = WORLD_TREE[catKey];
     if (!cat) return;
+    // If virtual parent, navigate to first sub-scene
+    if (cat.virtual) {
+      const scenes = await SceneRepo.getByCategory(catKey);
+      if (scenes.length > 0) await this.navigateToScene(scenes[0].id);
+      return;
+    }
     await this.navigateToScene(catKey);
   },
 
@@ -66,7 +72,7 @@ const App = {
     document.getElementById('world-view').classList.add('active');
 
     // Background
-    document.getElementById('world-bg').className = 'world-bg ' + (scene.bgClass || 'fantasy');
+    document.getElementById('world-bg').className = 'world-bg';
     const ib = document.getElementById('scene-image-bg');
     if (scene.bgImage) {
       ib.style.backgroundImage = `url(${scene.bgImage})`;
@@ -130,15 +136,18 @@ const App = {
     document.querySelectorAll('.panel-mode').forEach(m => {
       m.classList.toggle('active', m.dataset.mode === mode);
     });
-    const panes = { playlist: 'pane-playlist', noise: 'pane-noise', inspire: 'pane-inspire', oc: 'pane-oc', writing: 'pane-writing' };
+    const panes = { playlist: 'pane-playlist', noise: 'pane-noise', oc: 'pane-oc', writing: 'pane-writing' };
     Object.entries(panes).forEach(([k, id]) => {
       const el = document.getElementById(id);
       if (el) el.style.display = k === mode ? 'flex' : 'none';
     });
     if (mode === 'playlist') renderPlaylist();
     else if (mode === 'noise') renderNoise();
-    else if (mode === 'oc') renderOC();
-    else if (mode === 'writing') { if (!Writer.currentDocId) Writer.loadList(); }
+    else if (mode === 'oc') initOCPanel();
+    else if (mode === 'writing') {
+      if (Writer.currentDocId) App.showWritingEditor();
+      else Writer.loadList();
+    }
   },
 
   // ---- Dialogs ----
@@ -164,19 +173,33 @@ const App = {
     setTimeout(() => t.remove(), 2600);
   },
 
-  updateSaveStatus(text) { /* delegated to ui.js */ },
-  showWritingEditor() { /* delegated to ui.js */ },
-  showDocList() { /* delegated to ui.js */ },
-  renderPlayer() { /* delegated to ui.js */ },
-  renderPlaylist() { /* delegated to ui.js */ },
-  renderProgress() { /* delegated to ui.js */ },
-  renderNoise() { /* delegated to ui.js */ },
+  updateSaveStatus(text) {},
+  showWritingEditor() {
+    const wp = document.getElementById('writing-panel');
+    const dl = document.getElementById('docs-list-panel');
+    if (wp) wp.style.display = '';
+    if (dl) dl.style.display = 'none';
+    const btnNew = document.getElementById('btn-doc-new');
+    const btnSave = document.getElementById('btn-doc-save');
+    if (btnNew) btnNew.style.display = 'none';
+    if (btnSave) btnSave.style.display = '';
+  },
+  showDocList() {
+    const wp = document.getElementById('writing-panel');
+    const dl = document.getElementById('docs-list-panel');
+    if (wp) wp.style.display = 'none';
+    if (dl) dl.style.display = '';
+    const btnNew = document.getElementById('btn-doc-new');
+    const btnSave = document.getElementById('btn-doc-save');
+    if (btnNew) btnNew.style.display = '';
+    if (btnSave) btnSave.style.display = 'none';
+  },
+  renderPlayer() {},
+  renderPlaylist() {},
+  renderProgress() {},
+  renderNoise() {},
 };
 
-// Expose on App for cross-module access
-App.updateSaveStatus = () => {}; // silent auto-save
-App.showWritingEditor = () => { const wp = document.getElementById('writing-panel'); const dl = document.getElementById('docs-list-panel'); if (wp) wp.style.display = ''; if (dl) dl.style.display = 'none'; };
-App.showDocList = () => { const wp = document.getElementById('writing-panel'); const dl = document.getElementById('docs-list-panel'); if (wp) wp.style.display = 'none'; if (dl) dl.style.display = ''; };
 App.renderPlayer = renderPlayer;
 App.renderPlaylist = renderPlaylist;
 App.renderProgress = renderProgress;
@@ -184,7 +207,6 @@ App.renderNoise = renderNoise;
 
 // ---- Init ----
 async function initApp() {
-  // Load preferences
   App.state.volume = await SettingsRepo.get('volume', 0.7);
   App.state.loopMode = await SettingsRepo.get('loopMode', 0);
   App.state.shuffle = await SettingsRepo.get('shuffle', false);
@@ -193,14 +215,67 @@ async function initApp() {
   Writer.init();
 
   await SceneRepo.initSystemScenes();
-  await renderHome();
+
+  // Try to restore previous session
+  const restored = await restoreSession();
+  if (!restored) {
+    await renderHome();
+  }
+
   setupDialogs();
   setupUploadDialog();
   setupEventDelegation();
+
+  // Global drag-and-drop
+  const dropOverlay = document.getElementById('world-drop-overlay');
+  let dragCounter = 0;
+  document.addEventListener('dragenter', e => {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    if (App.state.view !== 'world') return;
+    dragCounter++;
+    if (dropOverlay) dropOverlay.classList.add('show');
+  });
+  document.addEventListener('dragleave', e => {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    dragCounter--;
+    if (dragCounter <= 0) { dragCounter = 0; if (dropOverlay) dropOverlay.classList.remove('show'); }
+  });
+  document.addEventListener('dragover', e => {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+  });
+  document.addEventListener('drop', e => {
+    dragCounter = 0;
+    if (dropOverlay) dropOverlay.classList.remove('show');
+    if (!e.dataTransfer.files.length) return;
+    e.preventDefault();
+    if (App.state.view !== 'world') return;
+    if (e.target.closest('.dialog-overlay')) return;
+    handleFiles(e.dataTransfer.files);
+  });
+
+  // Click on world-visual to open file picker
+  const worldVisual = document.querySelector('.world-visual');
+  if (worldVisual) {
+    worldVisual.style.cursor = 'pointer';
+    worldVisual.addEventListener('click', e => {
+      if (e.target.closest('.panel-trigger') ||
+          e.target.closest('.back-btn') || e.target.closest('.subworld-tab') ||
+          e.target.closest('button') || e.target.closest('.panel-overlay')) return;
+      document.getElementById('file-input').click();
+    });
+  }
+  if (dropOverlay) {
+    dropOverlay.addEventListener('click', () => document.getElementById('file-input').click());
+  }
+
+  // Forum card
+  const forumCard = document.getElementById('forum-card-entry');
+  if (forumCard) forumCard.addEventListener('click', () => App.navigateTo('forum'));
+
   startCoverVisual();
   startParticles();
 
-  // Player UI
   document.getElementById('vol-slider').value = Math.round(App.state.volume * 100);
   document.getElementById('vol-pct').textContent = Math.round(App.state.volume * 100) + '%';
   renderPlayer();
@@ -209,14 +284,13 @@ async function initApp() {
   console.log('InspMusic v2.0 ready');
 }
 
-// Tab dropdown — must be defined before setupEventDelegation
 function showTabDropdown(anchor, sceneId) {
   document.querySelectorAll('.tab-dropdown').forEach(d => d.remove());
   const rect = anchor.getBoundingClientRect();
   const dd = document.createElement('div'); dd.className = 'tab-dropdown';
   dd.innerHTML = `<div class="td-item" data-action="edit" data-scene="${sceneId}">编辑场景</div><div class="td-item danger" data-action="delete" data-scene="${sceneId}">删除场景</div>`;
   dd.style.left = Math.min(rect.left, window.innerWidth - 150) + 'px';
-  dd.style.top = (rect.bottom + 6) + 'px';
+  dd.style.bottom = (window.innerHeight - rect.top + 6) + 'px'; dd.style.top = 'auto';
   document.body.appendChild(dd);
   dd.querySelectorAll('.td-item').forEach(item => {
     item.addEventListener('click', async e => {
@@ -244,7 +318,10 @@ function showTabDropdown(anchor, sceneId) {
   }, 10);
 }
 
-// ---- Event Delegation ----
+// ---- OC Panel State (module-level, shared with setupEventDelegation) ----
+let ocEditingId = null;
+let ocEmpty, ocList, ocEditor;
+
 function setupEventDelegation() {
   // Panel mode tabs
   document.getElementById('panel-overlay').addEventListener('click', e => {
@@ -252,63 +329,23 @@ function setupEventDelegation() {
     if (modeBtn) App.setPanelMode(modeBtn.dataset.mode);
   });
 
-  // Scene tabs (navigation + menu)
+  // Scene tabs
   document.getElementById('subworld-tabs').addEventListener('click', async e => {
-    // "+" add tab
     if (e.target.closest('.add-tab')) {
       App.showCreateDialog(App.state.currentCategory);
       return;
     }
-    // "..." menu
     const menuBtn = e.target.closest('.tab-menu');
     if (menuBtn) {
       e.stopPropagation();
       showTabDropdown(menuBtn, menuBtn.dataset.scene);
       return;
     }
-    // Navigate
     const tab = e.target.closest('.subworld-tab');
     if (tab && tab.dataset.scene && tab.dataset.scene !== App.state.currentSceneId) {
       await App.navigateToScene(tab.dataset.scene);
     }
   });
-
-  // Tab dropdown — self-contained, handles its own clicks
-function showTabDropdown(anchor, sceneId) {
-  document.querySelectorAll('.tab-dropdown').forEach(d => d.remove());
-  const rect = anchor.getBoundingClientRect();
-  const dd = document.createElement('div'); dd.className = 'tab-dropdown';
-  dd.innerHTML = `<div class="td-item" data-action="edit" data-scene="${sceneId}">编辑场景</div><div class="td-item danger" data-action="delete" data-scene="${sceneId}">删除场景</div>`;
-  dd.style.left = Math.min(rect.left, window.innerWidth - 150) + 'px';
-  dd.style.top = (rect.bottom + 6) + 'px';
-  document.body.appendChild(dd);
-  // Click handlers on items
-  dd.querySelectorAll('.td-item').forEach(item => {
-    item.addEventListener('click', async e => {
-      e.stopPropagation();
-      const action = item.dataset.action;
-      const sid = item.dataset.scene;
-      dd.remove();
-      if (action === 'edit') openEditDialog(sid);
-      else if (action === 'delete') {
-        if (confirm('确定删除此场景？歌单也会被清空。')) {
-          const delScene = await SceneRepo.getById(sid);
-          await SceneRepo.remove(sid);
-          App.clearSceneCache();
-          const remaining = await SceneRepo.getByCategory(delScene.category);
-          if (remaining.length > 0) await App.navigateToScene(remaining[0].id);
-          else App.navigateTo('home');
-          App.toast('已删除');
-        }
-      }
-    });
-  });
-  // Close on outside click
-  setTimeout(() => {
-    const h = e => { if (!dd.contains(e.target) && e.target !== anchor) { dd.remove(); document.removeEventListener('click', h); } };
-    document.addEventListener('click', h);
-  }, 10);
-}
 
   // Playlist clicks
   document.getElementById('playlist-items').addEventListener('click', async e => {
@@ -339,18 +376,18 @@ function showTabDropdown(anchor, sceneId) {
     }
   });
 
-  // Noise panel — delegate from pane-noise (parent not rewritten)
-  document.getElementById('pane-noise').addEventListener('click', e => {
+  // Noise
+  document.getElementById('pane-noise').addEventListener('click', async e => {
     const toggle = e.target.closest('.ni-toggle');
-    if (toggle) { e.preventDefault(); e.stopPropagation(); NoiseEngine.toggle(toggle.dataset.noise); }
+    if (toggle) { e.preventDefault(); e.stopPropagation(); await NoiseEngine.toggle(toggle.dataset.noise); }
   });
   document.getElementById('pane-noise').addEventListener('input', e => {
     const slider = e.target.closest('.ni-vol');
     if (slider) NoiseEngine.setVol(slider.dataset.noise, slider.value / 100);
   });
-  document.getElementById('pane-noise').addEventListener('click', e => {
+  document.getElementById('pane-noise').addEventListener('click', async e => {
     const btn = e.target.closest('.noise-preset');
-    if (btn) NoiseEngine.applyPreset(btn.dataset.preset);
+    if (btn) await NoiseEngine.applyPreset(btn.dataset.preset);
   });
   document.getElementById('noise-master-vol').addEventListener('input', e => {
     NoiseEngine.setMasterVol(e.target.value);
@@ -371,13 +408,21 @@ function showTabDropdown(anchor, sceneId) {
   document.getElementById('btn-prev').addEventListener('click', () => Player.prev());
   document.getElementById('btn-loop').addEventListener('click', () => Player.toggleLoop());
   document.getElementById('btn-shuffle').addEventListener('click', () => Player.toggleShuffle());
-  document.getElementById('progress-track').addEventListener('click', e => Player.seek(e));
+
+  // Draggable progress bar
+  let progressDragging = false;
+  const progressTrack = document.getElementById('progress-track');
+  progressTrack.addEventListener('click', e => Player.seek(e));
+  progressTrack.addEventListener('mousedown', e => { progressDragging = true; Player.seek(e); });
+  document.addEventListener('mousemove', e => { if (progressDragging) Player.seek(e); });
+  document.addEventListener('mouseup', () => { progressDragging = false; });
+
   document.getElementById('vol-slider').addEventListener('input', e => {
     Player.setVolume(e.target.value);
     document.getElementById('vol-pct').textContent = e.target.value + '%';
   });
 
-  // Panel trigger
+  // Panel
   document.getElementById('panel-trigger').addEventListener('click', () => App.togglePanel());
   document.getElementById('panel-close').addEventListener('click', () => App.closePanel());
   document.getElementById('panel-backdrop').addEventListener('click', () => App.closePanel());
@@ -386,7 +431,7 @@ function showTabDropdown(anchor, sceneId) {
   document.getElementById('back-btn').addEventListener('click', () => App.navigateTo('home'));
   document.getElementById('forum-back-btn').addEventListener('click', () => App.navigateTo('home'));
 
-  // Playlist buttons
+  // Copy/Import
   document.getElementById('btn-copy-to').addEventListener('click', async () => {
     const all = await SceneRepo.getAll();
     const others = all.filter(s => s.id !== App.state.currentSceneId);
@@ -421,37 +466,39 @@ function showTabDropdown(anchor, sceneId) {
     App.showDialog('dlg-import', true);
   });
 
-  // Inspire buttons
-  document.getElementById('btn-inspire-scene').addEventListener('click', () => {
-    const p = getRandomPrompt('scene');
-    const el = document.getElementById('inspire-display');
-    el.textContent = p; el.classList.add('active');
-  });
-  document.getElementById('btn-inspire-dialogue').addEventListener('click', () => {
-    const p = getRandomPrompt('dialogue');
-    const el = document.getElementById('inspire-display');
-    el.textContent = p; el.classList.add('active');
-  });
-  document.getElementById('btn-inspire-plot').addEventListener('click', () => {
-    const p = getRandomPrompt('plot');
-    const el = document.getElementById('inspire-display');
-    el.textContent = p; el.classList.add('active');
+  // OC Panel
+  ocEditingId = null;
+  ocEmpty = document.getElementById('oc-empty');
+  ocList = document.getElementById('oc-list');
+  ocEditor = document.getElementById('oc-editor');
+
+  document.getElementById('oc-btn-new').addEventListener('click', () => { clearOCForm(); setOCMode('editor'); });
+  document.getElementById('oc-btn-save').addEventListener('click', saveOC);
+  document.getElementById('oc-btn-listview').addEventListener('click', async () => { clearOCForm(); await showOCList(); });
+
+  document.getElementById('oc-cards').addEventListener('click', async e => {
+    const card = e.target.closest('[data-char-id]');
+    if (!card || e.target.closest('.char-card-delete')) return;
+    const id = card.dataset.charId;
+    const chars = await CharRepo.getAll(App.state.currentSceneId);
+    const ch = chars.find(c => c.id === id);
+    if (!ch) return;
+    ocEditingId = ch.id;
+    document.getElementById('oc-edit-name').value = ch.name || '';
+    document.getElementById('oc-edit-age').value = ch.age || '';
+    document.getElementById('oc-edit-identity').value = ch.identity || '';
+    document.getElementById('oc-edit-personality').value = ch.personality || '';
+    document.getElementById('oc-edit-background').value = ch.background || '';
+    setOCMode('editor');
   });
 
-  // OC buttons
-  document.getElementById('btn-oc-generate').addEventListener('click', () => renderOC());
-  document.getElementById('btn-oc-copy').addEventListener('click', () => {
-    const fields = ['oc-name','oc-age','oc-identity','oc-personality','oc-background'];
-    const labels = ['姓名','年龄','身份','性格','背景'];
-    let text = '【OC人物设定卡】\n';
-    fields.forEach((id, i) => {
-      text += labels[i] + '：' + document.getElementById(id).textContent + '\n';
-    });
-    navigator.clipboard?.writeText(text).then(() => App.toast('已复制到剪贴板'));
-  });
+  // Writer buttons
+  document.getElementById('btn-doc-save').addEventListener('click', () => Writer.save());
+  document.getElementById('btn-doc-new').addEventListener('click', () => Writer.reset());
   document.getElementById('btn-doc-list').addEventListener('click', () => Writer.loadList());
-  document.getElementById('btn-doc-back').addEventListener('click', () => App.showWritingEditor());
   document.getElementById('btn-doc-float').addEventListener('click', () => Writer.openFloat());
+  document.getElementById('btn-doc-prev').addEventListener('click', () => Writer.prevDoc());
+  document.getElementById('btn-doc-next').addEventListener('click', () => Writer.nextDoc());
 
   // Float writer
   document.getElementById('fw-save').addEventListener('click', async () => {
@@ -465,8 +512,10 @@ function showTabDropdown(anchor, sceneId) {
   document.getElementById('fw-dock').addEventListener('click', () => {
     document.getElementById('writing-editor').innerHTML = document.getElementById('fw-editor').innerHTML;
     document.getElementById('doc-title').value = document.getElementById('fw-title-input').value;
+    Writer.markDirty();
     document.getElementById('float-writer').classList.remove('show');
     App.setPanelMode('writing');
+    App.showWritingEditor();
     App.openPanel();
   });
 
@@ -493,15 +542,68 @@ function showTabDropdown(anchor, sceneId) {
     }
   });
 
-  // Save prefs on unload
+  // Save session on unload
   window.addEventListener('beforeunload', () => {
+    if (Writer.dirty && App.state.currentSceneId) {
+      const title = document.getElementById('doc-title')?.value?.trim() || '未命名文档';
+      const content = document.getElementById('writing-editor')?.innerHTML || '';
+      DocsRepo.save(App.state.currentSceneId, Writer.currentDocId, title, content);
+    }
+    saveSession();
     SettingsRepo.set('volume', Player.volume);
     SettingsRepo.set('loopMode', Player.loopMode);
     SettingsRepo.set('shuffle', Player.shuffle);
   });
 }
 
-// ---- Dialogs Setup ----
+// ---- OC Panel Functions (module-level) ----
+function clearOCForm() {
+  ocEditingId = null;
+  document.getElementById('oc-edit-name').value = '';
+  document.getElementById('oc-edit-age').value = '';
+  document.getElementById('oc-edit-identity').value = '';
+  document.getElementById('oc-edit-personality').value = '';
+  document.getElementById('oc-edit-background').value = '';
+}
+
+function setOCMode(mode) {
+  if (ocEmpty) ocEmpty.style.display = mode === 'empty' ? '' : 'none';
+  if (ocList) ocList.style.display = mode === 'list' ? '' : 'none';
+  if (ocEditor) ocEditor.style.display = mode === 'editor' ? '' : 'none';
+  const btnNew = document.getElementById('oc-btn-new');
+  const btnSave = document.getElementById('oc-btn-save');
+  if (btnNew) btnNew.style.display = mode === 'editor' ? 'none' : '';
+  if (btnSave) btnSave.style.display = mode === 'editor' ? '' : 'none';
+}
+
+async function saveOC() {
+  const data = {
+    name: document.getElementById('oc-edit-name').value.trim(),
+    age: document.getElementById('oc-edit-age').value.trim(),
+    identity: document.getElementById('oc-edit-identity').value.trim(),
+    personality: document.getElementById('oc-edit-personality').value.trim(),
+    background: document.getElementById('oc-edit-background').value.trim(),
+  };
+  if (!data.name) { App.toast('请输入角色姓名'); return; }
+  if (ocEditingId) await CharRepo.update(ocEditingId, data);
+  else await CharRepo.add(App.state.currentSceneId, data);
+  clearOCForm();
+  App.toast('已保存');
+  await showOCList();
+}
+
+async function showOCList() {
+  await renderCharCards();
+  const cards = await CharRepo.getAll(App.state.currentSceneId);
+  setOCMode(cards.length === 0 ? 'empty' : 'list');
+}
+
+async function initOCPanel() {
+  clearOCForm();
+  await showOCList();
+}
+
+// ---- Dialogs ----
 function setupDialogs() {
   const cs = document.getElementById('new-scene-cat');
   cs.innerHTML = Object.entries(WORLD_TREE).map(([k, w]) => `<option value="${k}">${w.name}</option>`).join('') + '<option value="custom">自定义分类</option>';
@@ -541,7 +643,6 @@ function setupDialogs() {
     previewUrl = null;
   }
 
-  // Edit dialog
   let editPreviewUrl = null, editingSceneId = null;
   document.getElementById('edit-scene-img').addEventListener('change', e => {
     const f = e.target.files[0]; if (!f) return;
@@ -592,7 +693,6 @@ function setupDialogs() {
   document.getElementById('btn-cancel-copy').addEventListener('click', () => App.showDialog('dlg-copy', false));
   document.getElementById('btn-cancel-import').addEventListener('click', () => App.showDialog('dlg-import', false));
 
-  // Expose for tab dropdown
   window._editSceneId = (v) => editingSceneId = v;
   window._editPreviewUrl = (v) => editPreviewUrl = v;
 }
@@ -617,6 +717,41 @@ async function openEditDialog(sceneId) {
 }
 
 // ---- Upload ----
+async function handleFiles(files) {
+  const audioExts = ['.mp3','.wav','.ogg','.flac','.aac','.m4a','.wma','.opus','.weba','.m4b','.mp4','.aiff','.aif'];
+  let a = 0;
+  for (const f of files) {
+    const isAudio = f.type.startsWith('audio/') || audioExts.some(ext => f.name.toLowerCase().endsWith(ext));
+    if (!isAudio) continue;
+    App.toast('正在导入: ' + f.name);
+    await PlaylistRepo.addTrack(App.state.currentSceneId, { name: f.name.replace(/\.[^/.]+$/, ''), genre: '用户上传', duration: 0, type: 'user_upload', audioBlob: f });
+    a++;
+  }
+  if (a > 0) {
+    await App.loadPlaylist();
+    App.toast('已添加 ' + a + ' 首');
+    App.showDialog('dlg-upload', false);
+
+    // Auto-detect duration
+    for (const t of Player.playlist) {
+      if (t.dur <= 0 && t.audioBlob) {
+        try {
+          await Player.ensureCtx();
+          const buf = await t.audioBlob.arrayBuffer();
+          const ab = await Player.audioCtx.decodeAudioData(buf);
+          t.dur = Math.round(ab.duration);
+          try { await DB.tracks.update(t.id, { duration: t.dur }); } catch(e) {}
+        } catch(e) {}
+      }
+    }
+    renderPlaylist();
+    renderPlayer();
+    renderProgress();
+  } else {
+    App.toast('未识别到音频文件（支持 mp3/wav/flac/aac/m4a）');
+  }
+}
+
 function setupUploadDialog() {
   let uploadMode = 'file';
   function setMode(mode) {
@@ -626,9 +761,7 @@ function setupUploadDialog() {
     document.getElementById('upload-pane-url').style.display = mode === 'url' ? '' : 'none';
     document.getElementById('upload-pane-search').style.display = mode === 'search' ? '' : 'none';
   }
-  document.querySelectorAll('[data-upload-mode]').forEach(m => {
-    m.addEventListener('click', () => setMode(m.dataset.uploadMode));
-  });
+  document.querySelectorAll('[data-upload-mode]').forEach(m => m.addEventListener('click', () => setMode(m.dataset.uploadMode)));
 
   const ov = document.getElementById('dlg-upload');
   const show = () => { App.showDialog('dlg-upload', true); setMode('file'); };
@@ -640,23 +773,15 @@ function setupUploadDialog() {
   ov.addEventListener('click', e => { if (e.target === ov) hide(); });
 
   const dz = document.getElementById('upload-dropzone');
-  dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = 'var(--accent)'; });
+  dz.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); dz.style.borderColor = 'var(--accent)'; });
   dz.addEventListener('dragleave', () => dz.style.borderColor = '');
-  dz.addEventListener('drop', e => { e.preventDefault(); dz.style.borderColor = ''; handleFiles(e.dataTransfer.files); });
+  dz.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); dz.style.borderColor = ''; handleFiles(e.dataTransfer.files); });
+  ov.addEventListener('dragover', e => { e.preventDefault(); });
+  ov.addEventListener('drop', e => { e.preventDefault(); handleFiles(e.dataTransfer.files); });
   document.getElementById('file-input').addEventListener('change', () => {
     handleFiles(document.getElementById('file-input').files);
     document.getElementById('file-input').value = '';
   });
-
-  async function handleFiles(files) {
-    let a = 0;
-    for (const f of files) {
-      if (!f.type.startsWith('audio/')) continue;
-      await PlaylistRepo.addTrack(App.state.currentSceneId, { name: f.name.replace(/\.[^/.]+$/, ''), genre: '用户上传', duration: 0, type: 'user_upload', audioBlob: f });
-      a++;
-    }
-    if (a > 0) { await App.loadPlaylist(); App.toast('已添加 ' + a + ' 首'); hide(); }
-  }
 
   document.getElementById('btn-add-url').addEventListener('click', async () => {
     const url = document.getElementById('url-input').value.trim();
@@ -680,9 +805,8 @@ function setupUploadDialog() {
   });
 }
 
-// ---- World Scene Particles ----
+// ---- Particles ----
 function startParticles() {
-  // Global background particles (subtle)
   const bgCanvas = document.getElementById('global-bg');
   const bgCtx = bgCanvas.getContext('2d');
   let w, h;
@@ -706,11 +830,9 @@ function startParticles() {
   }
   bgFrame();
 
-  // World visual canvas — theme-specific animations
   const vc = document.getElementById('visual-canvas');
   if (!vc) return;
   const vctx = vc.getContext('2d');
-
   function vResize() {
     const parent = vc.parentElement;
     if (!parent) return;
@@ -719,9 +841,7 @@ function startParticles() {
   }
   window.addEventListener('resize', vResize);
 
-  // Scene state per theme
-  let vParticles = [];
-  let vTime = 0;
+  let vParticles = [], vTime = 0;
   const sceneConfigs = {
     ancient: { count: 50, type: 'petals', colors: ['#fbbf2488','#f59e0b66','#d9770644','#fde68a44'] },
     fantasy: { count: 40, type: 'magic', colors: ['#c4a0ff88','#a78bfa66','#d8b4fe44','#e9d5ff44'] },
@@ -741,134 +861,97 @@ function startParticles() {
     vResize();
     for (let i = 0; i < cfg.count; i++) {
       vParticles.push({
-        x: Math.random() * vc.width,
-        y: Math.random() * vc.height,
-        size: Math.random() * 3 + 1,
-        speed: Math.random() * 0.8 + 0.3,
+        x: Math.random() * vc.width, y: Math.random() * vc.height,
+        size: Math.random() * 3 + 1, speed: Math.random() * 0.8 + 0.3,
         opacity: Math.random() * 0.6 + 0.2,
         color: cfg.colors[Math.floor(Math.random() * cfg.colors.length)],
-        angle: Math.random() * Math.PI * 2,
-        wobble: Math.random() * 0.02,
-        life: Math.random(),
+        angle: Math.random() * Math.PI * 2, wobble: Math.random() * 0.02, life: Math.random(),
       });
     }
   }
 
   function drawScene() {
     if (App.state.view !== 'world') { requestAnimationFrame(drawScene); return; }
-    vResize();
-    vTime += 0.016;
+    vResize(); vTime += 0.016;
     const scene = App.getCurrentSceneCached();
     const cfg = sceneConfigs[scene?.bgClass] || sceneConfigs.fantasy;
-
     vctx.clearRect(0, 0, vc.width, vc.height);
-
-    // Draw center ambient glow
     const glowGrad = vctx.createRadialGradient(vc.width/2, vc.height/2, 0, vc.width/2, vc.height/2, Math.min(vc.width, vc.height) * 0.6);
-    glowGrad.addColorStop(0, 'rgba(255,255,255,0.03)');
-    glowGrad.addColorStop(1, 'transparent');
-    vctx.fillStyle = glowGrad;
-    vctx.fillRect(0, 0, vc.width, vc.height);
-
+    glowGrad.addColorStop(0, 'rgba(255,255,255,0.03)'); glowGrad.addColorStop(1, 'transparent');
+    vctx.fillStyle = glowGrad; vctx.fillRect(0, 0, vc.width, vc.height);
     vParticles.forEach(p => {
       p.life += 0.003;
       if (p.life > 1) { p.life = 0; p.x = Math.random() * vc.width; p.y = vc.height + 10; }
-
       switch (cfg.type) {
-        case 'petals': // 古风：花瓣飘落
-          p.y += p.speed * 0.6;
-          p.x += Math.sin(vTime * 2 + p.angle) * 0.4;
+        case 'petals':
+          p.y += p.speed * 0.6; p.x += Math.sin(vTime * 2 + p.angle) * 0.4;
           if (p.y > vc.height + 20) { p.y = -20; p.x = Math.random() * vc.width; }
           vctx.save(); vctx.translate(p.x, p.y); vctx.rotate(Math.sin(vTime + p.angle) * 0.5);
           vctx.fillStyle = p.color; vctx.globalAlpha = p.opacity;
           vctx.fillRect(-p.size, -p.size * 0.5, p.size * 2, p.size);
-          vctx.restore();
-          break;
-        case 'magic': // 西幻：魔法光点上升
-          p.y -= p.speed * 0.5;
-          p.x += Math.sin(vTime * 3 + p.angle) * 0.3;
+          vctx.restore(); break;
+        case 'magic':
+          p.y -= p.speed * 0.5; p.x += Math.sin(vTime * 3 + p.angle) * 0.3;
           if (p.y < -20) { p.y = vc.height + 20; p.x = Math.random() * vc.width; }
           vctx.beginPath(); vctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
           vctx.fillStyle = p.color; vctx.globalAlpha = p.opacity;
           vctx.shadowColor = p.color; vctx.shadowBlur = p.size * 3;
-          vctx.fill(); vctx.shadowBlur = 0;
-          break;
-        case 'rain': // 都市：细雨下落
-          p.y += p.speed * 2;
-          p.x += Math.sin(vTime + p.angle) * 0.2;
+          vctx.fill(); vctx.shadowBlur = 0; break;
+        case 'rain':
+          p.y += p.speed * 2; p.x += Math.sin(vTime + p.angle) * 0.2;
           if (p.y > vc.height + 10) { p.y = -10; p.x = Math.random() * vc.width; }
           vctx.strokeStyle = p.color; vctx.globalAlpha = p.opacity * 0.7;
           vctx.lineWidth = 0.5; vctx.beginPath();
           vctx.moveTo(p.x, p.y); vctx.lineTo(p.x - 0.5, p.y + p.size * 3);
-          vctx.stroke();
-          break;
-        case 'dust': // 民国：尘埃漂浮
-          p.y -= p.speed * 0.2;
-          p.x += (Math.random() - 0.5) * 0.3;
+          vctx.stroke(); break;
+        case 'dust':
+          p.y -= p.speed * 0.2; p.x += (Math.random() - 0.5) * 0.3;
           if (p.y < -10) { p.y = vc.height + 10; p.x = Math.random() * vc.width; }
           vctx.beginPath(); vctx.arc(p.x, p.y, p.size * 0.8, 0, Math.PI * 2);
-          vctx.fillStyle = p.color; vctx.globalAlpha = p.opacity * 0.5;
-          vctx.fill();
-          break;
-        case 'neonRain': // 赛博：霓虹雨滴
+          vctx.fillStyle = p.color; vctx.globalAlpha = p.opacity * 0.5; vctx.fill(); break;
+        case 'neonRain':
           p.y += p.speed * 2.5;
           if (p.y > vc.height + 10) { p.y = -10; p.x = Math.random() * vc.width; }
           vctx.strokeStyle = p.color; vctx.globalAlpha = p.opacity;
           vctx.lineWidth = 1; vctx.beginPath();
           vctx.moveTo(p.x, p.y); vctx.lineTo(p.x, p.y + p.size * 4);
-          vctx.stroke();
-          vctx.shadowColor = p.color; vctx.shadowBlur = 4;
-          vctx.stroke(); vctx.shadowBlur = 0;
-          break;
-        case 'embers': // 废土：火星飘散
-          p.y -= p.speed * 0.7;
-          p.x += (Math.random() - 0.5) * 0.6;
+          vctx.stroke(); vctx.shadowColor = p.color; vctx.shadowBlur = 4;
+          vctx.stroke(); vctx.shadowBlur = 0; break;
+        case 'embers':
+          p.y -= p.speed * 0.7; p.x += (Math.random() - 0.5) * 0.6;
           if (p.y < -10) { p.y = vc.height + 10; p.x = Math.random() * vc.width; }
           vctx.beginPath(); vctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
           vctx.fillStyle = p.color; vctx.globalAlpha = p.opacity;
           vctx.shadowColor = '#ff6600'; vctx.shadowBlur = p.size * 2;
-          vctx.fill(); vctx.shadowBlur = 0;
-          break;
-        case 'fog': // 悬疑：迷雾飘动
-          p.x += Math.sin(vTime * 0.5 + p.angle) * 0.5;
-          p.y += p.speed * 0.15;
-          if (p.x > vc.width + 50) p.x = -50;
-          if (p.x < -50) p.x = vc.width + 50;
+          vctx.fill(); vctx.shadowBlur = 0; break;
+        case 'fog':
+          p.x += Math.sin(vTime * 0.5 + p.angle) * 0.5; p.y += p.speed * 0.15;
+          if (p.x > vc.width + 50) p.x = -50; if (p.x < -50) p.x = vc.width + 50;
           vctx.beginPath(); vctx.arc(p.x, p.y, p.size * 6, 0, Math.PI * 2);
-          vctx.fillStyle = p.color; vctx.globalAlpha = p.opacity * 0.3;
-          vctx.fill();
-          break;
-        case 'gears': // 蒸汽朋克：齿轮粒子
-          p.y -= p.speed * 0.3;
-          p.angle += 0.01;
+          vctx.fillStyle = p.color; vctx.globalAlpha = p.opacity * 0.3; vctx.fill(); break;
+        case 'gears':
+          p.y -= p.speed * 0.3; p.angle += 0.01;
           if (p.y < -20) { p.y = vc.height + 20; p.x = Math.random() * vc.width; }
           vctx.save(); vctx.translate(p.x, p.y); vctx.rotate(p.angle);
           vctx.fillStyle = p.color; vctx.globalAlpha = p.opacity;
           const s = p.size * 2;
-          vctx.fillRect(-s/2, -s/6, s, s/3);
-          vctx.fillRect(-s/6, -s/2, s/3, s);
-          vctx.restore();
-          break;
-        case 'stars': // 太空：星空流转
-          p.y += p.speed * 0.3;
-          p.x += Math.sin(vTime * 0.3 + p.angle) * 0.2;
+          vctx.fillRect(-s/2, -s/6, s, s/3); vctx.fillRect(-s/6, -s/2, s/3, s);
+          vctx.restore(); break;
+        case 'stars':
+          p.y += p.speed * 0.3; p.x += Math.sin(vTime * 0.3 + p.angle) * 0.2;
           if (p.y > vc.height + 10) { p.y = -10; p.x = Math.random() * vc.width; }
           p.opacity = 0.3 + Math.sin(vTime * 3 + p.angle) * 0.3;
           vctx.beginPath(); vctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
           vctx.fillStyle = '#ffffff'; vctx.globalAlpha = Math.abs(p.opacity);
           vctx.shadowColor = '#ffffff'; vctx.shadowBlur = p.size * 2;
-          vctx.fill(); vctx.shadowBlur = 0;
-          break;
+          vctx.fill(); vctx.shadowBlur = 0; break;
       }
       vctx.globalAlpha = 1;
     });
     requestAnimationFrame(drawScene);
   }
+  initScene(); drawScene();
 
-  initScene();
-  drawScene();
-
-  // Re-init when scene changes
   const origNav = App.navigateToScene.bind(App);
   App.navigateToScene = async function(sceneId) {
     await origNav(sceneId);
@@ -876,5 +959,99 @@ function startParticles() {
   };
 }
 
-// Start
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+}
+
+// ---- Session Persistence ----
+function saveSession() {
+  const session = {
+    view: App.state.view,
+    sceneId: App.state.currentSceneId,
+    category: App.state.currentCategory,
+    panelOpen: App.panelOpen,
+    panelMode: App.panelMode,
+    currentTrackIdx: Player.currentIdx,
+    noiseMasterVol: NoiseEngine.masterVol,
+    activeNoises: {},
+    currentDocId: Writer.currentDocId,
+    fwLeft: document.getElementById('float-writer')?.style.left || '',
+    fwTop: document.getElementById('float-writer')?.style.top || '',
+  };
+  for (const [id, n] of Object.entries(NoiseEngine.noises)) {
+    if (n.playing) session.activeNoises[id] = { playing: true, volume: n.volume || 0.4 };
+  }
+  const titleEl = document.getElementById('doc-title');
+  const editorEl = document.getElementById('writing-editor');
+  if (titleEl && editorEl && Writer.dirty) {
+    session._draftTitle = titleEl.value.trim();
+    session._draftContent = editorEl.innerHTML;
+    session._draftDocId = Writer.currentDocId;
+  }
+  localStorage.setItem('inspmusic_session', JSON.stringify(session));
+}
+
+async function restoreSession() {
+  const raw = localStorage.getItem('inspmusic_session');
+  if (!raw) return false;
+  let session;
+  try { session = JSON.parse(raw); } catch (e) { return false; }
+  if (!session.view || !session.sceneId) return false;
+  if (session.view !== 'world') { localStorage.removeItem('inspmusic_session'); return false; }
+  const scene = await SceneRepo.getById(session.sceneId);
+  if (!scene) { localStorage.removeItem('inspmusic_session'); return false; }
+
+  await App.navigateToScene(session.sceneId);
+
+  if (session.panelOpen) {
+    App.panelMode = session.panelMode || 'playlist';
+    App.openPanel();
+  } else {
+    App.panelMode = session.panelMode || 'playlist';
+    App.closePanel();
+  }
+
+  if (session.currentTrackIdx >= 0 && session.currentTrackIdx < Player.playlist.length) {
+    Player.currentIdx = session.currentTrackIdx;
+    renderPlayer();
+    renderPlaylist();
+  }
+
+  if (session.noiseMasterVol != null) {
+    NoiseEngine.masterVol = session.noiseMasterVol;
+    const nmSlider = document.getElementById('noise-master-vol');
+    const nmPct = document.getElementById('noise-master-pct');
+    if (nmSlider) nmSlider.value = Math.round(session.noiseMasterVol * 100);
+    if (nmPct) nmPct.textContent = Math.round(session.noiseMasterVol * 100) + '%';
+  }
+  if (session.activeNoises) {
+    for (const [id, state] of Object.entries(session.activeNoises)) {
+      NoiseEngine.noises[id] = { playing: false, volume: state.volume || 0.4 };
+    }
+    renderNoise();
+  }
+
+  if (session.currentDocId) await Writer.load(session.currentDocId);
+
+  if (session.fwLeft || session.fwTop) {
+    const fw = document.getElementById('float-writer');
+    if (fw) {
+      if (session.fwLeft) fw.style.left = session.fwLeft;
+      if (session.fwTop) fw.style.top = session.fwTop;
+    }
+  }
+
+  if (session._draftDocId && session._draftContent) {
+    Writer.currentDocId = session._draftDocId;
+    const titleEl = document.getElementById('doc-title');
+    const editorEl = document.getElementById('writing-editor');
+    if (titleEl) titleEl.value = session._draftTitle || '';
+    if (editorEl) editorEl.innerHTML = session._draftContent;
+    Writer.markDirty();
+  }
+
+  return true;
+}
+
 document.addEventListener('DOMContentLoaded', initApp);
