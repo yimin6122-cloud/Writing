@@ -32,7 +32,7 @@ const WORLD_TREE = {
     category: 'ancient',
     defaultBg: 'images/古风.jpg',
     tracks: [
-      { name:'仙侠1', genre:'', dur:0, audioUrl:'music/古风1.m4a' },
+      { name:'仙侠1', genre:'', dur:0, audioUrl:'music/仙侠1.m4a' },
       { name:'仙侠2', genre:'', dur:0, audioUrl:'music/仙侠2.m4a' },
     ],
   },

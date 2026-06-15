@@ -38,7 +38,6 @@
 <div class="view" id="world-view">
   <div class="world-bg" id="world-bg"></div>
   <div class="scene-image-bg" id="scene-image-bg"></div>
-  <canvas id="world-particles" style="display:none"></canvas>
 
   <div class="world-drop-overlay" id="world-drop-overlay">
     <div class="world-drop-hint">
@@ -82,7 +81,7 @@
       </div>
       <div class="panel-sheet-body">
         <div id="pane-playlist" style="display:flex;flex:1;flex-direction:column">
-          <div class="playlist-panel" style="flex:2;overflow-y:auto">
+          <div class="playlist-panel" style="flex:1;overflow-y:auto">
             <div class="pl-header">
               <span>歌单</span>
               <div style="display:flex;gap:4px">
@@ -93,7 +92,7 @@
             </div>
             <div id="playlist-items"></div>
           </div>
-          <div style="flex:1;padding:var(--space-sm) 0 0 0;min-height:0">
+          <div id="player-section" style="flex:1;padding:var(--space-sm) 0 0 0;min-height:0;display:none">
             <div style="background:var(--glass-bg);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:0.5px solid var(--glass-border);border-radius:var(--radius-md);padding:var(--space-md);isolation:isolate">
             <div class="np-row">
               <div class="np-cover-mini"><img src="images/唱片.png" style="width:100%;height:100%;object-fit:cover;opacity:0.5"></div>

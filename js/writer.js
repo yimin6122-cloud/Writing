@@ -107,6 +107,22 @@ const Writer = {
     App.showWritingEditor();
   },
 
+  async prevDoc() {
+    const docs = await DocsRepo.getAll(App.state.currentSceneId);
+    if (docs.length === 0) return;
+    const idx = docs.findIndex(d => d.id === this.currentDocId);
+    if (idx > 0) await this.load(docs[idx - 1].id);
+    else if (idx === -1 && docs.length > 0) await this.load(docs[docs.length - 1].id);
+  },
+
+  async nextDoc() {
+    const docs = await DocsRepo.getAll(App.state.currentSceneId);
+    if (docs.length === 0) return;
+    const idx = docs.findIndex(d => d.id === this.currentDocId);
+    if (idx < docs.length - 1) await this.load(docs[idx + 1].id);
+    else if (idx === docs.length - 1) await this.load(docs[0].id);
+  },
+
   openFloat() {
     const sceneId = App.state.currentSceneId;
     if (!sceneId) return;

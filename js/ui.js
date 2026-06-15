@@ -84,13 +84,26 @@ async function renderSceneTabs(catKey, activeSceneId) {
   const scenes = await SceneRepo.getByCategory(catKey);
   container.innerHTML = scenes.map(s =>
     `<div class="subworld-tab${s.id === activeSceneId ? ' active' : ''}" data-scene="${s.id}">
-      ${s.name}<span class="tab-menu" data-scene="${s.id}">...</span>
+      ${s.name}<span class="tab-menu" data-scene="${s.id}">⋮</span>
     </div>`
   ).join('') + '<div class="subworld-tab add-tab" title="添加场景">+</div>';
 }
 
+function togglePlayerSection() {
+  const section = document.getElementById('player-section');
+  const playlistPanel = document.querySelector('.playlist-panel');
+  if (!section) return;
+  const hasTracks = Player.playlist.length > 0;
+  section.style.display = hasTracks ? '' : 'none';
+  // When player hidden, let playlist take full height
+  if (playlistPanel) {
+    playlistPanel.style.flex = hasTracks ? '' : '1';
+  }
+}
+
 // ---- Player UI ----
 function renderPlayer() {
+  togglePlayerSection();
   const btn = document.getElementById('btn-play');
   if (btn) {
     const playIcon = btn.querySelector('.icon-play');
@@ -138,6 +151,7 @@ function renderProgress() {
 }
 
 async function renderPlaylist() {
+  togglePlayerSection();
   const container = document.getElementById('playlist-items');
   if (!container) return;
   if (Player.playlist.length === 0) {
@@ -149,12 +163,40 @@ async function renderPlaylist() {
       <div class="pl-reorder"><span data-action="up" data-track="${t.id}">^</span><span data-action="down" data-track="${t.id}">v</span></div>
       <span class="pl-num">${String(i + 1).padStart(2, '0')}</span>
       <div class="pl-info">
-        <div class="pl-name">${t.name}</div>
+        <div class="pl-name" data-track="${t.id}" title="右键改名">${t.name}</div>
       </div>
       <div class="pl-actions"><span class="pl-act danger" data-action="remove" data-track="${t.id}">x</span></div>
       <span style="font-size:var(--text-caption);color:var(--text-muted);min-width:32px;text-align:right">${fmtTime(t.dur)}</span>
     </div>
   `).join('');
+
+  // Inline rename on double-click
+  container.querySelectorAll('.pl-name').forEach(el => {
+    el.addEventListener('contextmenu', async e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const trackId = el.dataset.track;
+      const currentName = el.textContent;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = currentName;
+      input.style.cssText = 'background:rgba(255,255,255,0.06);border:0.5px solid var(--glass-border-active);color:var(--text-primary);font-size:var(--text-sm);font-family:var(--font);padding:2px 6px;border-radius:4px;width:100%;outline:none';
+      el.textContent = '';
+      el.appendChild(input);
+      input.focus();
+      input.select();
+      const save = async () => {
+        const newName = input.value.trim() || currentName;
+        el.textContent = newName;
+        try { await DB.tracks.update(trackId, { name: newName }); } catch(e) {}
+        const track = Player.playlist.find(t => t.id === trackId);
+        if (track) track.name = newName;
+        renderPlayer();
+      };
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') { input.blur(); } if (e.key === 'Escape') { el.textContent = currentName; } });
+    });
+  });
 }
 
 // ---- Noise UI ----

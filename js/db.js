@@ -33,6 +33,27 @@ DB.version(7).stores(_storesV7).upgrade(async tx => {
   await tx.table('chars').clear();
 });
 
+// v9: 清理可能因 v8 升级失败导致的脏数据，重新初始化
+DB.version(9).stores({
+  scenes:          'id,type,category,name,createdAt',
+  playlistEntries: '[sceneId+order],sceneId,trackId,playlistId',
+  tracks:          'id,type',
+  settings:        'key',
+  docs:            'id,sceneId,updatedAt',
+  chars:           'id,sceneId,order',
+  playlists:       'id,sceneId,order',
+}).upgrade(async tx => {
+  console.log('DB v9: cleaning up for fresh start...');
+  await tx.table('scenes').clear();
+  await tx.table('playlistEntries').clear();
+  await tx.table('tracks').clear();
+  await tx.table('settings').clear();
+  await tx.table('docs').clear();
+  await tx.table('chars').clear();
+  await tx.table('playlists').clear();
+  console.log('DB v9: done');
+});
+
 // ---- Scene CRUD ----
 const SceneRepo = {
   async initSystemScenes() {
@@ -41,22 +62,25 @@ const SceneRepo = {
     const existing = await DB.scenes.where({ type: 'system' }).toArray();
     const existingIds = new Set(existing.map(s => s.id));
     const scenes = [], entries = [], tracks = [];
+    let newCount = 0;
 
     for (const [ck, cat] of Object.entries(WORLD_TREE)) {
       const sid = ck;
       const parentCategory = cat.category || ck;
 
       // Skip virtual parent entries — they group sub-scenes only
+      const defaultPid = 'pl_default_' + ck;
       if (cat.virtual) {
         (cat.tracks || []).forEach((t, i) => {
           const tid = `sys_${ck}_${i}`;
-          entries.push({ sceneId: sid, trackId: tid, order: i });
+          entries.push({ sceneId: sid, trackId: tid, order: i, playlistId: defaultPid });
           tracks.push({ id: tid, type: t.audioUrl ? 'external_url' : 'system_generated', name: t.name, genre: t.genre, duration: t.dur, worldKey: ck, subKey: null, trackIdx: i, audioUrl: t.audioUrl || null });
         });
         continue;
       }
 
       if (!existingIds.has(sid)) {
+        newCount++;
         scenes.push({
           id: sid, type: 'system', category: parentCategory,
           name: cat.name, desc: cat.desc,
@@ -66,19 +90,11 @@ const SceneRepo = {
           palette: cat.palette, bgClass: cat.bgClass,
           createdAt: new Date().toISOString(),
         });
-      } else {
-        // Update existing scene with any config changes
-        await DB.scenes.update(sid, {
-          name: cat.name, desc: cat.desc,
-          bgImage: cat.defaultBg || null,
-          bgOpacity: cat.defaultBg ? (cat.bgOpacity != null ? cat.bgOpacity : 0.4) : null,
-          accent: cat.accent, accentGlow: cat.accentGlow,
-          palette: cat.palette, bgClass: cat.bgClass,
-        });
       }
+      // Always sync tracks — new config tracks should appear for existing scenes too
       (cat.tracks || []).forEach((t, i) => {
         const tid = `sys_${ck}_${i}`;
-        entries.push({ sceneId: sid, trackId: tid, order: i });
+        entries.push({ sceneId: sid, trackId: tid, order: i, playlistId: defaultPid });
         tracks.push({ id: tid, type: t.audioUrl ? 'external_url' : 'system_generated', name: t.name, genre: t.genre, duration: t.dur, worldKey: ck, subKey: null, trackIdx: i, audioUrl: t.audioUrl || null });
       });
     }
@@ -90,12 +106,19 @@ const SceneRepo = {
 
     if (scenes.length > 0) await DB.scenes.bulkPut(scenes);
     if (tracks.length > 0) await DB.tracks.bulkPut(tracks);
-    // Clear old system entries and rebuild
+    // Ensure default playlists exist for all system scenes
+    for (const sid of Object.keys(WORLD_TREE)) {
+      const pid = 'pl_default_' + sid;
+      if (!(await DB.playlists.get(pid))) {
+        await DB.playlists.put({ id: pid, sceneId: sid, name: '默认歌单', order: 0, createdAt: new Date().toISOString() });
+      }
+    }
+    // Rebuild system playlist entries (new tracks for all scenes)
     await DB.playlistEntries.where('trackId').startsWith('sys_').delete();
     for (const e of entries) {
       await DB.playlistEntries.put(e);
     }
-    console.log('initSystemScenes: done, scenes=' + scenes.length + ', tracks=' + tracks.length + ', entries=' + entries.length);
+    console.log('initSystemScenes: done, new=' + newCount + ', tracks=' + tracks.length + ', entries=' + entries.length);
     } catch(e) {
       console.error('initSystemScenes failed:', e);
     }
@@ -146,21 +169,57 @@ const SceneRepo = {
 
 // ---- Playlist CRUD ----
 const PlaylistRepo = {
-  async getEntries(sceneId) {
-    return await DB.playlistEntries.where({ sceneId }).sortBy('order');
+  /** 获取或创建场景的默认歌单 */
+  async _defaultPlaylistId(sceneId) {
+    const pid = 'pl_default_' + sceneId;
+    const exists = await DB.playlists.get(pid);
+    if (!exists) {
+      await DB.playlists.put({ id: pid, sceneId, name: '默认歌单', order: 0, createdAt: new Date().toISOString() });
+    }
+    return pid;
   },
 
-  async getTracksWithMeta(sceneId) {
-    const entries = await this.getEntries(sceneId);
+  /** 获取场景下的所有歌单 */
+  async getPlaylists(sceneId) {
+    return await DB.playlists.where({ sceneId }).sortBy('order');
+  },
+
+  /** 创建新歌单 */
+  async createPlaylist(sceneId, name) {
+    const all = await this.getPlaylists(sceneId);
+    const id = 'pl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    await DB.playlists.put({ id, sceneId, name, order: all.length, createdAt: new Date().toISOString() });
+    return id;
+  },
+
+  /** 重命名歌单 */
+  async renamePlaylist(id, name) {
+    await DB.playlists.update(id, { name });
+  },
+
+  /** 删除歌单及其所有曲目 */
+  async deletePlaylist(id) {
+    await DB.playlistEntries.where({ playlistId: id }).delete();
+    await DB.playlists.delete(id);
+  },
+
+  async getEntries(sceneId, playlistId) {
+    const pid = playlistId || await this._defaultPlaylistId(sceneId);
+    return await DB.playlistEntries.where({ sceneId, playlistId: pid }).sortBy('order');
+  },
+
+  async getTracksWithMeta(sceneId, playlistId) {
+    const entries = await this.getEntries(sceneId, playlistId);
     const tracks = [];
     for (const e of entries) {
       const t = await DB.tracks.get(e.trackId);
-      if (t) tracks.push({ ...t, entryOrder: e.order });
+      if (t) tracks.push({ ...t, entryOrder: e.order, playlistId: e.playlistId });
     }
     return tracks;
   },
 
-  async addTrack(sceneId, td) {
+  async addTrack(sceneId, td, playlistId) {
+    const pid = playlistId || await this._defaultPlaylistId(sceneId);
     const tid = td.id || ('trk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6));
     await DB.tracks.put({
       id: tid, type: td.type || 'user_upload',
@@ -172,9 +231,9 @@ const PlaylistRepo = {
       subKey: td.subKey || null,
       trackIdx: td.trackIdx || null,
     });
-    const entries = await this.getEntries(sceneId);
+    const entries = await this.getEntries(sceneId, pid);
     const order = entries.length > 0 ? Math.max(...entries.map(e => e.order)) + 1 : 0;
-    await DB.playlistEntries.put({ sceneId, trackId: tid, order });
+    await DB.playlistEntries.put({ sceneId, trackId: tid, order, playlistId: pid });
     return tid;
   },
 
@@ -182,31 +241,34 @@ const PlaylistRepo = {
     await DB.playlistEntries.where({ sceneId, trackId }).delete();
   },
 
-  async moveUp(sceneId, trackId) {
-    const entries = await this.getEntries(sceneId);
+  async moveUp(sceneId, trackId, playlistId) {
+    const pid = playlistId || await this._defaultPlaylistId(sceneId);
+    const entries = await this.getEntries(sceneId, pid);
     const idx = entries.findIndex(e => e.trackId === trackId);
     if (idx <= 0) return;
     const [m] = entries.splice(idx, 1);
     entries.splice(idx - 1, 0, m);
-    await DB.playlistEntries.bulkPut(entries.map((e, i) => ({ sceneId, trackId: e.trackId, order: i })));
+    await DB.playlistEntries.bulkPut(entries.map((e, i) => ({ sceneId, trackId: e.trackId, order: i, playlistId: pid })));
   },
 
-  async moveDown(sceneId, trackId) {
-    const entries = await this.getEntries(sceneId);
+  async moveDown(sceneId, trackId, playlistId) {
+    const pid = playlistId || await this._defaultPlaylistId(sceneId);
+    const entries = await this.getEntries(sceneId, pid);
     const idx = entries.findIndex(e => e.trackId === trackId);
     if (idx < 0 || idx >= entries.length - 1) return;
     const [m] = entries.splice(idx, 1);
     entries.splice(idx + 1, 0, m);
-    await DB.playlistEntries.bulkPut(entries.map((e, i) => ({ sceneId, trackId: e.trackId, order: i })));
+    await DB.playlistEntries.bulkPut(entries.map((e, i) => ({ sceneId, trackId: e.trackId, order: i, playlistId: pid })));
   },
 
   async copyToScene(fromId, toId) {
     const fromTracks = await this.getTracksWithMeta(fromId);
     const toEntries = await this.getEntries(toId);
+    const pid = await this._defaultPlaylistId(toId);
     let order = toEntries.length > 0 ? Math.max(...toEntries.map(e => e.order)) + 1 : 0;
     for (const t of fromTracks) {
       if (toEntries.some(e => e.trackId === t.id)) continue;
-      await DB.playlistEntries.put({ sceneId: toId, trackId: t.id, order: order++ });
+      await DB.playlistEntries.put({ sceneId: toId, trackId: t.id, order: order++, playlistId: pid });
     }
   },
 

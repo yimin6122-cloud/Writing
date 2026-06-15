@@ -177,8 +177,10 @@ const App = {
   showWritingEditor() {
     const wp = document.getElementById('writing-panel');
     const dl = document.getElementById('docs-list-panel');
+    const nav = document.getElementById('writing-nav');
     if (wp) wp.style.display = '';
     if (dl) dl.style.display = 'none';
+    if (nav) nav.style.display = '';
     const btnNew = document.getElementById('btn-doc-new');
     const btnSave = document.getElementById('btn-doc-save');
     if (btnNew) btnNew.style.display = 'none';
@@ -187,8 +189,10 @@ const App = {
   showDocList() {
     const wp = document.getElementById('writing-panel');
     const dl = document.getElementById('docs-list-panel');
+    const nav = document.getElementById('writing-nav');
     if (wp) wp.style.display = 'none';
     if (dl) dl.style.display = '';
+    if (nav) nav.style.display = 'none';
     const btnNew = document.getElementById('btn-doc-new');
     const btnSave = document.getElementById('btn-doc-save');
     if (btnNew) btnNew.style.display = '';
@@ -207,6 +211,7 @@ App.renderNoise = renderNoise;
 
 // ---- Init ----
 async function initApp() {
+  try {
   App.state.volume = await SettingsRepo.get('volume', 0.7);
   App.state.loopMode = await SettingsRepo.get('loopMode', 0);
   App.state.shuffle = await SettingsRepo.get('shuffle', false);
@@ -282,6 +287,10 @@ async function initApp() {
   renderProgress();
 
   console.log('InspMusic v2.0 ready');
+  } catch(e) {
+    console.error('initApp failed:', e);
+    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:rgba(255,255,255,0.7);font-family:sans-serif;text-align:center;padding:40px"><div><h2>加载失败</h2><p style="margin-top:12px;opacity:0.6">请尝试清除浏览器数据后刷新<br><span style="font-size:12px">' + (e.message || e) + '</span></p></div></div>';
+  }
 }
 
 function showTabDropdown(anchor, sceneId) {
@@ -611,9 +620,14 @@ function setupDialogs() {
   let previewUrl = null;
   document.getElementById('new-scene-img').addEventListener('change', e => {
     const f = e.target.files[0]; if (!f) return;
-    previewUrl = URL.createObjectURL(f);
-    document.getElementById('new-scene-preview').style.backgroundImage = `url(${previewUrl})`;
-    document.getElementById('new-scene-preview').textContent = '';
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = reader.result;
+      document.getElementById('new-scene-preview').style.backgroundImage = `url(${previewUrl})`;
+      document.getElementById('new-scene-preview').textContent = '';
+    };
+    reader.readAsDataURL(f);
   });
   document.getElementById('btn-confirm-create').addEventListener('click', async () => {
     const name = document.getElementById('new-scene-name').value.trim();
@@ -646,10 +660,14 @@ function setupDialogs() {
   let editPreviewUrl = null, editingSceneId = null;
   document.getElementById('edit-scene-img').addEventListener('change', e => {
     const f = e.target.files[0]; if (!f) return;
-    if (editPreviewUrl) URL.revokeObjectURL(editPreviewUrl);
-    editPreviewUrl = URL.createObjectURL(f);
-    document.getElementById('edit-scene-preview').style.backgroundImage = `url(${editPreviewUrl})`;
-    document.getElementById('edit-scene-preview').textContent = '';
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (editPreviewUrl) URL.revokeObjectURL(editPreviewUrl);
+      editPreviewUrl = reader.result;
+      document.getElementById('edit-scene-preview').style.backgroundImage = `url(${editPreviewUrl})`;
+      document.getElementById('edit-scene-preview').textContent = '';
+    };
+    reader.readAsDataURL(f);
   });
   document.getElementById('edit-scene-opacity').addEventListener('input', e => {
     document.getElementById('edit-opacity-val').textContent = e.target.value + '%';
@@ -660,6 +678,7 @@ function setupDialogs() {
     const u = {
       name: document.getElementById('edit-scene-name').value.trim(),
       desc: document.getElementById('edit-scene-desc').value.trim(),
+      bgOpacity: parseInt(document.getElementById('edit-scene-opacity').value) / 100,
     };
     const cat = WORLD_TREE[edScene.category];
     if (cat) { u.accent = cat.accent; u.accentGlow = cat.accentGlow; u.palette = cat.palette; u.bgClass = cat.bgClass; u.parentName = cat.name; }

@@ -225,9 +225,10 @@ const Player = {
     }
     if (track.audioUrl) {
       if (!track._buffer && !track._cacheUrl) {
+        const url = encodeURI(track.audioUrl);
         await this.ensureCtx();
         try {
-          const resp = await fetch(track.audioUrl);
+          const resp = await fetch(url);
           if (!resp.ok) throw new Error('HTTP ' + resp.status);
           const buf = await resp.arrayBuffer();
           track._buffer = await this.audioCtx.decodeAudioData(buf);
@@ -235,7 +236,7 @@ const Player = {
         } catch (e) {
           console.warn('URL decode failed, using Audio element fallback:', e.message);
         }
-        track._cacheUrl = track.audioUrl;
+        track._cacheUrl = url;
       }
       return;
     }
