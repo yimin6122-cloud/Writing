@@ -206,6 +206,15 @@ html, body {
 .pl-header { font-size: var(--text-xs); font-weight: var(--font-weight-medium); color: var(--text-tertiary); margin-bottom: var(--space-sm); display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); }
 .pl-action-btn { font-size: var(--text-xs); padding: 4px 10px; border-radius: var(--radius-full); border: 0.5px solid var(--glass-border); background: transparent; color: var(--text-tertiary); cursor: pointer; font-family: var(--font); transition: all var(--ease-out); white-space: nowrap; }
 .pl-action-btn:hover { border-color: var(--glass-border-hover); color: var(--text-secondary); }
+.pl-selector { display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: var(--text-xs); font-weight: var(--font-weight-medium); color: var(--text-tertiary); padding: 2px 6px; border-radius: var(--radius-sm); transition: all var(--ease-out); }
+.pl-selector:hover { background: rgba(255,255,255,0.04); color: var(--text-secondary); }
+.pl-dropdown { position: absolute; z-index: 40; min-width: 140px; background: rgba(18,18,32,0.96); backdrop-filter: blur(16px); border: 0.5px solid var(--glass-border-active); border-radius: var(--radius-sm); padding: var(--space-xs); box-shadow: 0 12px 40px rgba(0,0,0,0.7); }
+.pl-dropdown .pd-item { padding: var(--space-xs) var(--space-sm); border-radius: 6px; cursor: pointer; font-size: var(--text-sm); color: var(--text-tertiary); display: flex; align-items: center; justify-content: space-between; }
+.pl-dropdown .pd-item:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+.pl-dropdown .pd-item.active { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+.pl-dropdown .pd-item .pd-menu { font-size: 10px; opacity: 0; padding: 2px 4px; }
+.pl-dropdown .pd-item:hover .pd-menu { opacity: 0.5; }
+.pl-dropdown .pd-item .pd-menu:hover { opacity: 1; color: var(--danger-text); }
 .pl-item { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm); border-radius: var(--radius-sm); cursor: pointer; transition: all var(--ease-out); font-size: var(--text-sm); }
 .pl-item:hover { background: rgba(255,255,255,0.04); }
 .pl-item.playing { background: rgba(255,255,255,0.06); }

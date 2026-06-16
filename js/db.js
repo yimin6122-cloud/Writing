@@ -20,7 +20,6 @@ const _storesV7 = {
   settings:        'key',
   docs:            'id,sceneId,updatedAt',
   chars:           'id,sceneId,order',
-  playlists:       '',  // leftover from failed v5/v6 upgrade
 };
 DB.version(5).stores(_storesV7);
 DB.version(6).stores(_storesV7);
@@ -33,7 +32,18 @@ DB.version(7).stores(_storesV7).upgrade(async tx => {
   await tx.table('chars').clear();
 });
 
-// v9: 清理可能因 v8 升级失败导致的脏数据，重新初始化
+// v8: 多歌单支持 — 新增 playlists 表，playlistEntries 加 playlistId 索引
+DB.version(8).stores({
+  scenes:          'id,type,category,name,createdAt',
+  playlistEntries: '[sceneId+order],sceneId,trackId,playlistId',
+  tracks:          'id,type',
+  settings:        'key',
+  docs:            'id,sceneId,updatedAt',
+  chars:           'id,sceneId,order',
+  playlists:       'id,sceneId,order',
+});
+
+// v9: 如果 v8 处于脏状态，清理重建
 DB.version(9).stores({
   scenes:          'id,type,category,name,createdAt',
   playlistEntries: '[sceneId+order],sceneId,trackId,playlistId',
@@ -43,15 +53,30 @@ DB.version(9).stores({
   chars:           'id,sceneId,order',
   playlists:       'id,sceneId,order',
 }).upgrade(async tx => {
-  console.log('DB v9: cleaning up for fresh start...');
-  await tx.table('scenes').clear();
-  await tx.table('playlistEntries').clear();
-  await tx.table('tracks').clear();
-  await tx.table('settings').clear();
-  await tx.table('docs').clear();
-  await tx.table('chars').clear();
-  await tx.table('playlists').clear();
+  console.log('DB v9: cleanup for clean state');
+  try { await tx.table('scenes').clear(); } catch(e) {}
+  try { await tx.table('playlistEntries').clear(); } catch(e) {}
+  try { await tx.table('tracks').clear(); } catch(e) {}
+  try { await tx.table('playlists').clear(); } catch(e) {}
   console.log('DB v9: done');
+});
+
+// v10: 额外清理（处理之前可能的不完整升级）
+DB.version(10).stores({
+  scenes:          'id,type,category,name,createdAt',
+  playlistEntries: '[sceneId+order],sceneId,trackId,playlistId',
+  tracks:          'id,type',
+  settings:        'key',
+  docs:            'id,sceneId,updatedAt',
+  chars:           'id,sceneId,order',
+  playlists:       'id,sceneId,order',
+}).upgrade(async tx => {
+  console.log('DB v10: final cleanup');
+  try { await tx.table('scenes').clear(); } catch(e) {}
+  try { await tx.table('playlistEntries').clear(); } catch(e) {}
+  try { await tx.table('tracks').clear(); } catch(e) {}
+  try { await tx.table('playlists').clear(); } catch(e) {}
+  console.log('DB v10: done');
 });
 
 // ---- Scene CRUD ----
@@ -113,8 +138,11 @@ const SceneRepo = {
         await DB.playlists.put({ id: pid, sceneId: sid, name: '默认歌单', order: 0, createdAt: new Date().toISOString() });
       }
     }
-    // Rebuild system playlist entries (new tracks for all scenes)
-    await DB.playlistEntries.where('trackId').startsWith('sys_').delete();
+    // Rebuild system playlist entries in default playlists only (preserve user copies in other playlists)
+    for (const sid of Object.keys(WORLD_TREE)) {
+      const pid = 'pl_default_' + sid;
+      await DB.playlistEntries.where({ sceneId: sid, playlistId: pid }).delete();
+    }
     for (const e of entries) {
       await DB.playlistEntries.put(e);
     }
@@ -273,6 +301,17 @@ const PlaylistRepo = {
   },
 
   async importFromScene(toId, fromId) { return await this.copyToScene(fromId, toId); },
+
+  async copyToPlaylist(fromSceneId, fromPlaylistId, toPlaylistId, toSceneId) {
+    const targetScene = toSceneId || fromSceneId;
+    const fromTracks = await this.getTracksWithMeta(fromSceneId, fromPlaylistId);
+    const toEntries = await this.getEntries(targetScene, toPlaylistId);
+    let order = toEntries.length > 0 ? Math.max(...toEntries.map(e => e.order)) + 1 : 0;
+    for (const t of fromTracks) {
+      if (toEntries.some(e => e.trackId === t.id)) continue;
+      await DB.playlistEntries.put({ sceneId: targetScene, trackId: t.id, order: order++, playlistId: toPlaylistId });
+    }
+  },
 
   async clear(sceneId) { await DB.playlistEntries.where({ sceneId }).delete(); },
 };

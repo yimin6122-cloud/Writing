@@ -150,6 +150,15 @@ function renderProgress() {
   if (tot) tot.textContent = fmtTime(dur);
 }
 
+async function renderPlaylistSelector() {
+  const nameEl = document.getElementById('pl-current-name');
+  const sceneId = App.state.currentSceneId;
+  if (!nameEl || !sceneId) return;
+  const playlists = await PlaylistRepo.getPlaylists(sceneId);
+  const current = playlists.find(p => p.id === App.state.currentPlaylistId);
+  if (nameEl) nameEl.textContent = current ? current.name : '默认歌单';
+}
+
 async function renderPlaylist() {
   togglePlayerSection();
   const container = document.getElementById('playlist-items');

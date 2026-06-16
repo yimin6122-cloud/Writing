@@ -83,8 +83,12 @@
         <div id="pane-playlist" style="display:flex;flex:1;flex-direction:column">
           <div class="playlist-panel" style="flex:1;overflow-y:auto">
             <div class="pl-header">
-              <span>歌单</span>
+              <div class="pl-selector" id="pl-selector" title="点击切换歌单">
+                <span id="pl-current-name">默认歌单</span>
+                <span style="font-size:10px;opacity:0.5">▼</span>
+              </div>
               <div style="display:flex;gap:4px">
+                <button class="pl-action-btn" id="btn-playlist-new" title="新建歌单">+</button>
                 <button class="pl-action-btn" id="btn-copy-from">导入</button>
                 <button class="pl-action-btn" id="btn-copy-to">复制</button>
                 <button class="pl-action-btn" id="pl-upload-btn">+ 上传</button>

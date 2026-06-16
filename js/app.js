@@ -7,6 +7,7 @@ const App = {
     mainWorld: 'ancient',
     subWorld: null,
     currentSceneId: null,
+    currentPlaylistId: null,
     currentCategory: null,
     sidebarMode: 'player',
     sidebarCollapsed: false,
@@ -90,9 +91,11 @@ const App = {
     await renderSceneTabs(scene.category, sceneId);
 
     // Playlist
+    this.state.currentPlaylistId = await PlaylistRepo._defaultPlaylistId(sceneId);
     await this.loadPlaylist();
     renderPlayer();
     renderProgress();
+    renderPlaylistSelector();
 
     // Reset writing
     Writer.reset();
@@ -100,8 +103,9 @@ const App = {
     this.clearSceneCache();
   },
 
-  async loadPlaylist() {
-    const tracks = await PlaylistRepo.getTracksWithMeta(this.state.currentSceneId);
+  async loadPlaylist(playlistId) {
+    const pid = playlistId || this.state.currentPlaylistId;
+    const tracks = await PlaylistRepo.getTracksWithMeta(this.state.currentSceneId, pid);
     Player.playlist = tracks.map(t => ({
       id: t.id, name: t.name, genre: t.genre, dur: t.duration || 0,
       type: t.type, worldKey: t.worldKey, subKey: t.subKey, trackIdx: t.trackIdx,
@@ -141,7 +145,7 @@ const App = {
       const el = document.getElementById(id);
       if (el) el.style.display = k === mode ? 'flex' : 'none';
     });
-    if (mode === 'playlist') renderPlaylist();
+    if (mode === 'playlist') { renderPlaylist(); renderPlaylistSelector(); }
     else if (mode === 'noise') renderNoise();
     else if (mode === 'oc') initOCPanel();
     else if (mode === 'writing') {
@@ -356,6 +360,86 @@ function setupEventDelegation() {
     }
   });
 
+  // Playlist selector
+  document.getElementById('pl-selector').addEventListener('click', async e => {
+    e.stopPropagation();
+    document.querySelectorAll('.pl-dropdown').forEach(d => d.remove());
+    const rect = document.getElementById('pl-selector').getBoundingClientRect();
+    const playlists = await PlaylistRepo.getPlaylists(App.state.currentSceneId);
+    const dd = document.createElement('div'); dd.className = 'pl-dropdown';
+    dd.innerHTML = playlists.map(p => `
+      <div class="pd-item${p.id === App.state.currentPlaylistId ? ' active' : ''}" data-pid="${p.id}">
+        <span>${p.name}</span>
+        <span class="pd-menu" data-action="delete" data-pid="${p.id}">×</span>
+      </div>
+    `).join('');
+    dd.style.position = 'fixed';
+    dd.style.left = Math.min(rect.left, window.innerWidth - 170) + 'px';
+    dd.style.top = (rect.bottom + 4) + 'px';
+    document.body.appendChild(dd);
+    dd.querySelectorAll('.pd-item').forEach(item => {
+      item.addEventListener('contextmenu', async e2 => {
+        e2.preventDefault(); e2.stopPropagation();
+        const pid = item.dataset.pid;
+        const currentName = item.querySelector('span').textContent;
+        const newName = prompt('重命名歌单：', currentName);
+        if (newName && newName.trim() && newName.trim() !== currentName) {
+          await PlaylistRepo.renamePlaylist(pid, newName.trim());
+          await renderPlaylistSelector();
+          dd.remove();
+          App.toast('已改名');
+        }
+      });
+      item.addEventListener('click', async e2 => {
+        e2.stopPropagation();
+        if (e2.target.closest('.pd-menu')) return;
+        const pid = item.dataset.pid;
+        if (pid !== App.state.currentPlaylistId) {
+          App.state.currentPlaylistId = pid;
+          Player.stop();
+          await App.loadPlaylist(pid);
+          renderPlayer();
+          await renderPlaylistSelector();
+        }
+        dd.remove();
+      });
+    });
+    dd.querySelectorAll('.pd-menu').forEach(btn => {
+      btn.addEventListener('click', async e2 => {
+        e2.stopPropagation();
+        if (confirm('删除此歌单及其所有曲目？')) {
+          await PlaylistRepo.deletePlaylist(btn.dataset.pid);
+          if (App.state.currentPlaylistId === btn.dataset.pid) {
+            App.state.currentPlaylistId = await PlaylistRepo._defaultPlaylistId(App.state.currentSceneId);
+          }
+          Player.stop();
+          await App.loadPlaylist();
+          renderPlayer();
+          await renderPlaylistSelector();
+          dd.remove();
+        }
+      });
+    });
+    setTimeout(() => {
+      const h = e => { if (!dd.contains(e.target)) { dd.remove(); document.removeEventListener('click', h); } };
+      document.addEventListener('click', h);
+    }, 10);
+  });
+
+  // New playlist button
+  document.getElementById('btn-playlist-new').addEventListener('click', async e => {
+    e.stopPropagation();
+    const name = prompt('新歌单名称：');
+    if (!name || !name.trim()) return;
+    const pid = await PlaylistRepo.createPlaylist(App.state.currentSceneId, name.trim());
+    App.state.currentPlaylistId = pid;
+    Player.stop();
+    await App.loadPlaylist(pid);
+    renderPlayer();
+    await renderPlaylistSelector();
+    App.toast('歌单已创建');
+  });
+
   // Playlist clicks
   document.getElementById('playlist-items').addEventListener('click', async e => {
     const reorderBtn = e.target.closest('.pl-reorder span');
@@ -442,15 +526,24 @@ function setupEventDelegation() {
 
   // Copy/Import
   document.getElementById('btn-copy-to').addEventListener('click', async () => {
-    const all = await SceneRepo.getAll();
-    const others = all.filter(s => s.id !== App.state.currentSceneId);
-    if (others.length === 0) { App.toast('没有其他场景'); return; }
     const list = document.getElementById('dlg-copy-list');
-    document.getElementById('dlg-copy-title').textContent = '复制歌单到';
-    list.innerHTML = others.map(s => `<div class="scene-select-item" data-scene="${s.id}"><div class="ss-info"><div class="ss-name">${s.name}</div><div class="ss-cat">${s.parentName || s.category}</div></div></div>`).join('');
+    document.getElementById('dlg-copy-title').textContent = '复制当前歌单到';
+    let html = '';
+    const allScenes = await SceneRepo.getAll();
+    for (const s of allScenes) {
+      if (s.id === App.state.currentSceneId) continue;
+      const pls = await PlaylistRepo.getPlaylists(s.id);
+      if (pls.length === 0) continue;
+      html += `<div style="font-size:var(--text-xs);color:var(--text-muted);padding:6px 8px 2px">${s.name}</div>`;
+      for (const p of pls) {
+        html += `<div class="scene-select-item" data-scene="${s.id}" data-pid="${p.id}"><div class="ss-info"><div class="ss-name">${p.name}</div><div class="ss-cat">${s.name}</div></div></div>`;
+      }
+    }
+    if (!html) { App.toast('没有其他场景的歌单'); return; }
+    list.innerHTML = html;
     list.querySelectorAll('.scene-select-item').forEach(item => {
       item.addEventListener('click', async () => {
-        await PlaylistRepo.copyToScene(App.state.currentSceneId, item.dataset.scene);
+        await PlaylistRepo.copyToPlaylist(App.state.currentSceneId, App.state.currentPlaylistId, item.dataset.pid, item.dataset.scene);
         App.showDialog('dlg-copy', false);
         App.toast('已复制');
       });
@@ -459,14 +552,31 @@ function setupEventDelegation() {
   });
 
   document.getElementById('btn-copy-from').addEventListener('click', async () => {
-    const all = await SceneRepo.getAll();
-    const others = all.filter(s => s.id !== App.state.currentSceneId);
-    if (others.length === 0) { App.toast('没有其他场景'); return; }
     const list = document.getElementById('dlg-import-list');
-    list.innerHTML = others.map(s => `<div class="scene-select-item" data-scene="${s.id}"><div class="ss-info"><div class="ss-name">${s.name}</div><div class="ss-cat">${s.parentName || s.category}</div></div></div>`).join('');
+    let html = '';
+    const myPls = await PlaylistRepo.getPlaylists(App.state.currentSceneId);
+    const otherMyPls = myPls.filter(p => p.id !== App.state.currentPlaylistId);
+    if (otherMyPls.length > 0) {
+      html += `<div style="font-size:var(--text-xs);color:var(--text-muted);padding:6px 8px 2px">当前场景</div>`;
+      for (const p of otherMyPls) {
+        html += `<div class="scene-select-item" data-scene="${App.state.currentSceneId}" data-pid="${p.id}"><div class="ss-info"><div class="ss-name">${p.name}</div><div class="ss-cat">同场景</div></div></div>`;
+      }
+    }
+    const allScenes = await SceneRepo.getAll();
+    for (const s of allScenes) {
+      if (s.id === App.state.currentSceneId) continue;
+      const pls = await PlaylistRepo.getPlaylists(s.id);
+      if (pls.length === 0) continue;
+      html += `<div style="font-size:var(--text-xs);color:var(--text-muted);padding:6px 8px 2px">${s.name}</div>`;
+      for (const p of pls) {
+        html += `<div class="scene-select-item" data-scene="${s.id}" data-pid="${p.id}"><div class="ss-info"><div class="ss-name">${p.name}</div><div class="ss-cat">${s.name}</div></div></div>`;
+      }
+    }
+    if (!html) { App.toast('没有可导入的歌单'); return; }
+    list.innerHTML = html;
     list.querySelectorAll('.scene-select-item').forEach(item => {
       item.addEventListener('click', async () => {
-        await PlaylistRepo.importFromScene(App.state.currentSceneId, item.dataset.scene);
+        await PlaylistRepo.copyToPlaylist(item.dataset.scene, item.dataset.pid, App.state.currentPlaylistId, App.state.currentSceneId);
         App.showDialog('dlg-import', false);
         await App.loadPlaylist();
         App.toast('已导入');
@@ -988,6 +1098,7 @@ function saveSession() {
   const session = {
     view: App.state.view,
     sceneId: App.state.currentSceneId,
+    playlistId: App.state.currentPlaylistId,
     category: App.state.currentCategory,
     panelOpen: App.panelOpen,
     panelMode: App.panelMode,
@@ -1022,6 +1133,13 @@ async function restoreSession() {
   if (!scene) { localStorage.removeItem('inspmusic_session'); return false; }
 
   await App.navigateToScene(session.sceneId);
+
+  if (session.playlistId && session.playlistId !== App.state.currentPlaylistId) {
+    App.state.currentPlaylistId = session.playlistId;
+    await App.loadPlaylist(session.playlistId);
+    renderPlayer();
+    renderPlaylistSelector();
+  }
 
   if (session.panelOpen) {
     App.panelMode = session.panelMode || 'playlist';

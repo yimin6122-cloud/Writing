@@ -139,32 +139,20 @@ const WORLD_TREE = {
 
 // ---- 白噪音配置 ----
 const NOISE_TYPES = [
-  { id:'rain_light',  name:'轻柔小雨', tag:'日常写作', cat:'weather', color:'#60a5fa' },
-  { id:'rain_thunder',name:'雷雨交加', tag:'冲突场景', cat:'weather', color:'#6366f1' },
-  { id:'wind_gentle', name:'微风轻拂', tag:'治愈片段', cat:'weather', color:'#86efac' },
-  { id:'wind_storm',  name:'狂风呼啸', tag:'紧张场景', cat:'weather', color:'#94a3b8' },
-  { id:'snow',        name:'风雪交加', tag:'寒冷氛围', cat:'weather', color:'#e2e8f0' },
-  { id:'fire',        name:'篝火噼啪', tag:'围炉夜话', cat:'nature',  color:'#fb923c' },
-  { id:'stream',      name:'溪水潺潺', tag:'清冷氛围', cat:'nature',  color:'#38bdf8' },
-  { id:'ocean',       name:'海浪拍岸', tag:'开阔场景', cat:'nature',  color:'#0ea5e9' },
-  { id:'forest',      name:'林间鸟鸣', tag:'森林冒险', cat:'nature',  color:'#4ade80' },
-  { id:'magic',       name:'魔法嗡鸣', tag:'施法场景', cat:'fantasy', color:'#c084fc' },
-  { id:'city',        name:'城市背景', tag:'现代题材', cat:'urban',   color:'#94a3b8' },
-  { id:'cafe',        name:'咖啡馆',   tag:'轻松对话', cat:'urban',   color:'#d4a574' },
-  { id:'keyboard',    name:'键盘敲击', tag:'写作激励', cat:'urban',   color:'#a78bfa' },
-  { id:'clock',       name:'钟表滴答', tag:'悬疑氛围', cat:'urban',   color:'#fbbf24' },
-  { id:'vinyl',       name:'老唱片杂音',tag:'怀旧氛围',cat:'urban',   color:'#d4a574' },
+  { id:'rain_light',  name:'轻柔小雨', tag:'日常写作', cat:'weather', color:'#60a5fa', file:'白噪音/freesound_community-rain-sound-and-rainforest-6293.m4a' },
+  { id:'rain_thunder',name:'大暴雨',   tag:'冲突场景', cat:'weather', color:'#6366f1', file:'白噪音/白噪音1.m4a' },
+  { id:'rain_city',   name:'城镇雨天', tag:'日常氛围', cat:'weather', color:'#38bdf8', file:'白噪音/whitenoisesleepers-rainy-day-in-town-with-birds-singing-194011.m4a' },
+  { id:'wind_gentle', name:'微风轻拂', tag:'治愈片段', cat:'weather', color:'#86efac', file:'白噪音/freesound_community-wind-thru-trees-51176.m4a' },
+  { id:'city',        name:'城市背景', tag:'现代题材', cat:'urban',   color:'#94a3b8', file:'白噪音/街道.m4a' },
+  { id:'park',        name:'公园鸟鸣', tag:'清新氛围', cat:'nature',  color:'#4ade80', file:'白噪音/freesound_community-park-6026.m4a' },
+  { id:'vinyl',       name:'老唱片杂音',tag:'怀旧氛围',cat:'urban',   color:'#d4a574', file:'白噪音/freesound_community-vinyl-crackle-33rpm-6065.m4a' },
 ];
 
 const NOISE_PRESETS = {
   none:  { name:'全部关闭', noises:{} },
-  calm:  { name:'安静写作', noises:{rain_light:0.3,keyboard:0.4,clock:0.2} },
-  storm: { name:'冲突场景', noises:{rain_thunder:0.6,wind_storm:0.5} },
-  forest:{ name:'森林探索', noises:{forest:0.5,stream:0.4,wind_gentle:0.3} },
-  magic: { name:'魔法氛围', noises:{magic:0.5,wind_gentle:0.2,fire:0.3} },
-  cafe:  { name:'咖啡馆',   noises:{cafe:0.5,city:0.2,keyboard:0.3} },
-  night: { name:'深夜独处', noises:{city:0.2,clock:0.3,vinyl:0.3} },
-  epic:  { name:'史诗战争', noises:{wind_storm:0.6,fire:0.5,rain_thunder:0.4} },
+  rain:  { name:'雨天氛围', noises:{rain_light:0.5,rain_thunder:0.3,rain_city:0.4} },
+  wind:  { name:'自然微风', noises:{wind_gentle:0.6,city:0.2} },
+  urban: { name:'城市漫步', noises:{city:0.5,rain_light:0.2,wind_gentle:0.2} },
 };
 
 // ---- 音乐生成配置 ----
