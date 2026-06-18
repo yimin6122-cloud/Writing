@@ -627,8 +627,12 @@ function setupEventDelegation() {
     const family = fontMap[v || savedFont] || '';
     const we = document.getElementById('writing-editor');
     const fe = document.getElementById('fw-editor');
+    const dt = document.getElementById('doc-title');
+    const ft = document.getElementById('fw-title-input');
     if (we) we.style.fontFamily = family;
     if (fe) fe.style.fontFamily = family;
+    if (dt) dt.style.fontFamily = family;
+    if (ft) ft.style.fontFamily = family;
   };
   if (fontEl) {
     fontEl.value = savedFont;
