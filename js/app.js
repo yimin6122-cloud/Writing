@@ -619,6 +619,23 @@ function setupEventDelegation() {
   document.getElementById('btn-doc-prev').addEventListener('click', () => Writer.prevDoc());
   document.getElementById('btn-doc-next').addEventListener('click', () => Writer.nextDoc());
 
+  // Font selector
+  const fontEl = document.getElementById('font-selector');
+  const fontMap = { default: '', serif: '"Noto Serif SC","STSong","SimSun",serif', kai: '"STKaiti","KaiTi","楷体",serif', hei: '"Microsoft YaHei","PingFang SC","黑体",sans-serif', song: '"FangSong","仿宋",serif' };
+  const savedFont = localStorage.getItem('inspmusic_font') || 'default';
+  const applyFont = (v) => {
+    const family = fontMap[v || savedFont] || '';
+    const we = document.getElementById('writing-editor');
+    const fe = document.getElementById('fw-editor');
+    if (we) we.style.fontFamily = family;
+    if (fe) fe.style.fontFamily = family;
+  };
+  if (fontEl) {
+    fontEl.value = savedFont;
+    fontEl.addEventListener('change', () => { const v = fontEl.value; localStorage.setItem('inspmusic_font', v); applyFont(v); });
+  }
+  applyFont();
+
   // Float writer
   document.getElementById('fw-save').addEventListener('click', async () => {
     document.getElementById('writing-editor').innerHTML = document.getElementById('fw-editor').innerHTML;
