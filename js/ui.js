@@ -5,18 +5,26 @@
 // ---- Homepage ----
 async function renderHome() {
   const sysScenes = await SceneRepo.getAll('system');
+  const userScenes = await SceneRepo.getAll('user');
   const grouped = {};
   sysScenes.forEach(s => {
-    if (!grouped[s.category]) grouped[s.category] = [];
-    grouped[s.category].push(s);
+    if (!grouped[s.category]) grouped[s.category] = { total: 0, cat: WORLD_TREE[s.category] };
+    grouped[s.category].total++;
+  });
+  // Also count user-created scenes in each category
+  userScenes.forEach(s => {
+    if (WORLD_TREE[s.category]) {
+      if (!grouped[s.category]) grouped[s.category] = { total: 0, cat: WORLD_TREE[s.category] };
+      grouped[s.category].total++;
+    }
   });
 
   const grid = document.getElementById('feature-grid');
-  grid.innerHTML = Object.entries(grouped).map(([ck, scenes]) => {
-    const cat = WORLD_TREE[ck]; if (!cat) return '';
+  grid.innerHTML = Object.entries(grouped).map(([ck, g]) => {
+    if (!g.cat) return '';
     return `<div class="glass-card" data-nav="category" data-cat="${ck}">
-      <div class="card-label">${cat.name}</div>
-      <div class="card-desc">${scenes.length}个场景</div>
+      <div class="card-label">${g.cat.name}</div>
+      <div class="card-desc">${g.total}个场景</div>
     </div>`;
   }).join('') + `
     <div class="glass-card create-new" data-nav="create-scene">
