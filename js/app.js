@@ -189,6 +189,14 @@ const App = {
     const btnSave = document.getElementById('btn-doc-save');
     if (btnNew) btnNew.style.display = 'none';
     if (btnSave) btnSave.style.display = '';
+    // Re-apply saved font
+    const savedFont = localStorage.getItem('inspmusic_font') || 'default';
+    const fontMap = { default: '', serif: '"Noto Serif SC","STSong","SimSun",serif', kai: '"STKaiti","KaiTi","楷体",serif', hei: '"Microsoft YaHei","PingFang SC","黑体",sans-serif', song: '"FangSong","仿宋",serif' };
+    const family = fontMap[savedFont] || '';
+    const we = document.getElementById('writing-editor');
+    const dt = document.getElementById('doc-title');
+    if (we) we.style.fontFamily = family;
+    if (dt) dt.style.fontFamily = family;
   },
   showDocList() {
     const wp = document.getElementById('writing-panel');

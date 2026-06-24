@@ -264,6 +264,7 @@ html, body {
 .writing-topbar .doc-btn:hover { border-color: var(--glass-border-hover); color: var(--text-secondary); }
 .writing-topbar .doc-btn.save { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.15); color: #fff; }
 .writing-topbar .doc-btn.save:hover { background: rgba(255,255,255,0.16); }
+.writing-topbar select.doc-btn:focus { outline: none; box-shadow: none; -webkit-appearance: none; }
 .writing-nav .doc-btn { font-size: var(--text-xs); padding: 3px 10px; border-radius: var(--radius-full); border: 0.5px solid var(--glass-border); background: transparent; color: var(--text-tertiary); cursor: pointer; font-family: var(--font); transition: all var(--ease-out); white-space: nowrap; }
 .writing-nav .doc-btn:hover { border-color: var(--glass-border-hover); color: var(--text-secondary); }
 #oc-cards { display: flex; flex-direction: column; gap: var(--space-sm); }
